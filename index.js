@@ -29,6 +29,7 @@ app.post("/verifyadmin", userRoutes.verifyAdmin);
 app.post("/verifyuser", userRoutes.verifyUser);
 app.post("/verifylogin", userRoutes.verifyLogin);
 
+app.post("/getdatasetadmin", getDataFunction.getDataSetAdmin );
 app.post("/getdataset", getDataFunction.getDataSet);
 app.post("/getdataset2", getDataFunction.getDataSet2);
 app.post("/getdatasetpercentage", getDataFunction.getDataSetPercentage);
