@@ -1,12 +1,9 @@
+const https = require("https");
 const express = require("express");
-const app = express();
-const cors = require("cors");
 const jwt = require("jsonwebtoken");
-app.use(cors());
-app.use(express.json());
+const app = express();
+
 const secretKey = "newSecretKey";
-const fs = require("fs");
-const { log } = require("console");
 const multer = require("multer");
 const upload = multer({ dest: "uploads/" });
 const xlsx = require("xlsx");
@@ -29,7 +26,7 @@ app.post("/verifyadmin", userRoutes.verifyAdmin);
 app.post("/verifyuser", userRoutes.verifyUser);
 app.post("/verifylogin", userRoutes.verifyLogin);
 
-app.post("/getdatasetadmin", getDataFunction.getDataSetAdmin );
+app.post("/getdatasetadmin", getDataFunction.getDataSetAdmin);
 app.post("/getdataset", getDataFunction.getDataSet);
 app.post("/getdataset2", getDataFunction.getDataSet2);
 app.post("/getdatasetpercentage", getDataFunction.getDataSetPercentage);
@@ -51,8 +48,8 @@ app.post(
 app.post("/insertagent", upload.single("file"), (req, res) => {
   jwt.verify(req.query.token, secretKey, async (err) => {
     if (err) {
-      console.error("Invalid token:");
-      res.status(200).json(false, "Invalid token");
+      console.error("Invalid token:", err);
+      res.status(200).json({ success: false, message: "Invalid token" });
     } else {
       try {
         const name = req.query.USERNAME;
@@ -64,32 +61,46 @@ app.post("/insertagent", upload.single("file"), (req, res) => {
           return;
         }
 
-        const workbook = xlsx.readFile(file.path);
+        const workbook = xlsx.read(file.buffer, { type: "buffer" });
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
         const data = xlsx.utils.sheet_to_json(worksheet);
 
-        const transaction = new sql.Transaction(pool);
-        await transaction.begin();
+        const connection = await pool.getConnection();
 
         try {
-          const request = new sql.Request(transaction);
+          await connection.beginTransaction();
+
           for (const row of data) {
             const date = new Date();
             const formattedDate = date
               .toISOString()
-              .replace("T", " ")
-              .substring(0, 19);
-            await request.query(
-              `INSERT INTO EMPLOYEE (EMP_FIRSTNAME,EMP_LASTNAME, ROLE_ID, DIVISION_ID,CREATE_BY,INSERT_DATE) VALUES ('${row.EMP_FIRSTNAME}', '${row.EMP_LASTNAME}', '${row.ROLE_ID}', '${row.DIVISION_ID}', '${name}', '${formattedDate}')`
-            );
+              .slice(0, 19)
+              .replace("T", " ");
+
+            const insertQuery = `
+              INSERT INTO EMPLOYEE (EMP_FIRSTNAME, EMP_LASTNAME, ROLE_ID, DIVISION_ID, CREATE_BY, INSERT_DATE)
+              VALUES (?, ?, ?, ?, ?, ?)`;
+
+            const insertValues = [
+              row.EMP_FIRSTNAME,
+              row.EMP_LASTNAME,
+              row.ROLE_ID,
+              row.DIVISION_ID,
+              name,
+              formattedDate,
+            ];
+
+            await connection.query(insertQuery, insertValues);
           }
 
-          await transaction.commit();
+          await connection.commit();
           res.status(200).json({ message: "Upload data success." });
         } catch (error) {
           console.error(error);
-          await transaction.rollback();
+          await connection.rollback();
           res.status(500).json({ message: "Error while insert data." });
+        } finally {
+          connection.release();
         }
       } catch (error) {
         console.error(error);
@@ -100,7 +111,12 @@ app.post("/insertagent", upload.single("file"), (req, res) => {
     }
   });
 });
+const credentials = {
+  key: privateKey,
+  cert: certificate,
+};
+const httpsServer = https.createServer(credentials, app);
 
-app.listen(3001, () => {
-  console.log("Server is running on port 3001");
+httpsServer.listen(3001, () => {
+  console.log("Server is running on port 3001 (HTTPS)");
 });
