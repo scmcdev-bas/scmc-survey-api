@@ -1,20 +1,31 @@
 const https = require("https");
 const express = require("express");
 const jwt = require("jsonwebtoken");
+const multer = require("multer");
+const xlsx = require("xlsx");
+const pool = require("./src/db");
+const userRoutes = require("./src/user");
+const getDataFunction = require("./src/getdata");
+const cors = require("cors"); 
+
+const privateKey = "your_private_key_here"; // Add your private key
+const certificate = "your_certificate_here"; // Add your certificate
+
+const credentials = {
+  key: privateKey,
+  cert: certificate,
+};
+
 const app = express();
 
 const secretKey = "newSecretKey";
-const multer = require("multer");
 const upload = multer({ dest: "uploads/" });
-const xlsx = require("xlsx");
-const pool = require("./src/db");
+
 const {
   searchAgentData,
   searchManagerData,
   searchUser,
 } = require("./src/search");
-const userRoutes = require("./src/user");
-const getDataFunction = require("./src/getdata"); // Assuming the getdata.js file is in the same directory
 
 app.post("/searchagentdata", searchAgentData);
 app.post("/searchmanagerdata", searchManagerData);
@@ -111,12 +122,10 @@ app.post("/insertagent", upload.single("file"), (req, res) => {
     }
   });
 });
-const credentials = {
-  key: privateKey,
-  cert: certificate,
-};
+app.use(cors()); 
 const httpsServer = https.createServer(credentials, app);
 
 httpsServer.listen(3001, () => {
   console.log("Server is running on port 3001 (HTTPS)");
 });
+
