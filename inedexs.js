@@ -369,6 +369,7 @@ app.post("/searchagentdata", (req, res) => {
         ATM: topics.includes("ATM") ? "ATM" : null,
         CreditCard: topics.includes("CreditCard") ? "CreditCard" : null,
         MYMO: topics.includes("MYMO") ? "MYMO" : null,
+        MYMO: topics.includes("MYMO") ? "MYMO" : null,
       };
       console.log(endDate)
       const query = `

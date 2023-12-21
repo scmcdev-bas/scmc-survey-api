@@ -97,11 +97,11 @@ const getDataSet = (req, res) => {
           const currentDate = moment().format("YYYY-MM-DD HH:mm:ss");
 
           const query = `SELECT IVR_SURVEY_TRANS.SURVEY_TOPIC AS name, 
-          SUM(CASE WHEN IVR_SURVEY_TRANS.Score = 5 THEN 1 ELSE 0 END) AS Score5, 
-          SUM(CASE WHEN IVR_SURVEY_TRANS.Score = 4 THEN 1 ELSE 0 END) AS Score4, 
-          SUM(CASE WHEN IVR_SURVEY_TRANS.Score = 3 THEN 1 ELSE 0 END) AS Score3, 
-          SUM(CASE WHEN IVR_SURVEY_TRANS.Score = 2 THEN 1 ELSE 0 END) AS Score2, 
-          SUM(CASE WHEN IVR_SURVEY_TRANS.Score = 1 THEN 1 ELSE 0 END) AS Score1 
+          SUM(CASE WHEN IVR_SURVEY_TRANS.Score = 5 THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 5 THEN 1 ELSE 0 END) AS Score5, 
+          SUM(CASE WHEN IVR_SURVEY_TRANS.Score = 4 THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 4 THEN 1 ELSE 0 END) AS Score4, 
+          SUM(CASE WHEN IVR_SURVEY_TRANS.Score = 3 THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 3 THEN 1 ELSE 0 END) AS Score3, 
+          SUM(CASE WHEN IVR_SURVEY_TRANS.Score = 2 THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 2 THEN 1 ELSE 0 END) AS Score2, 
+          SUM(CASE WHEN IVR_SURVEY_TRANS.Score = 1 THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 1 THEN 1 ELSE 0 END) AS Score1 
           FROM IVR_SURVEY_TRANS 
           JOIN EMPLOYEE ON EMPLOYEE.EMP_ID = IVR_SURVEY_TRANS.AGENT_ID 
           WHERE SURVEY_TOPIC <> '' 
@@ -200,11 +200,12 @@ const getDataSetPercentage = (req, res) => {
 
           const query = `
             SELECT IVR_SURVEY_TRANS.SURVEY_TOPIC AS name, 
-            COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 5 THEN 1 ELSE NULL END) AS Score5, 
-            COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 4 THEN 1 ELSE NULL END) AS Score4, 
-            COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 3 THEN 1 ELSE NULL END) AS Score3, 
-            COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 2 THEN 1 ELSE NULL END) AS Score2, 
-            COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 1 THEN 1 ELSE NULL END) AS Score1 
+            COUNT(IVR_SURVEY_TRANS.Score) AS scorelength,
+            COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 5 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 5 THEN 1 ELSE NULL END) AS Score5, 
+            COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 4 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 4 THEN 1 ELSE NULL END) AS Score4, 
+            COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 3 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 3 THEN 1 ELSE NULL END) AS Score3, 
+            COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 2 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 2 THEN 1 ELSE NULL END) AS Score2, 
+            COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 1 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 1 THEN 1 ELSE NULL END) AS Score1 
             FROM IVR_SURVEY_TRANS 
             JOIN EMPLOYEE ON EMPLOYEE.EMP_ID = IVR_SURVEY_TRANS.AGENT_ID 
             WHERE SURVEY_TOPIC <> '' 
@@ -253,16 +254,17 @@ const getDataSetPercentageAdmin = (req, res) => {
           } else {
             connection.query(
               "SELECT COUNT(Score) AS scorelength, " +
-                "SUM(CASE WHEN Score = 98 THEN 1 ELSE 0 END) AS nodata, " +
-                "SUM(CASE WHEN Score = 5 THEN 1 ELSE 0 END) AS Score5, " +
-                "SUM(CASE WHEN Score = 4 THEN 1 ELSE 0 END) AS Score4, " +
-                "SUM(CASE WHEN Score = 3 THEN 1 ELSE 0 END) AS Score3, " +
-                "SUM(CASE WHEN Score = 2 THEN 1 ELSE 0 END) AS Score2, " +
-                "SUM(CASE WHEN Score = 1 THEN 1 ELSE 0 END) AS Score1 " +
+                "SUM(CASE WHEN Score = 98 THEN 1 ELSE 0 END) +  SUM(CASE WHEN Score_2 = 98 THEN 1 ELSE 0 END)AS nodata, " +
+                "SUM(CASE WHEN Score = 5 THEN 1 ELSE 0 END) +  SUM(CASE WHEN Score_2 = 5 THEN 1 ELSE 0 END) AS Score5, " +
+                "SUM(CASE WHEN Score = 4 THEN 1 ELSE 0 END) +  SUM(CASE WHEN Score_2 = 4 THEN 1 ELSE 0 END) AS Score4, " +
+                "SUM(CASE WHEN Score = 3 THEN 1 ELSE 0 END) +  SUM(CASE WHEN Score_2 = 3 THEN 1 ELSE 0 END) AS Score3, " +
+                "SUM(CASE WHEN Score = 2 THEN 1 ELSE 0 END) +  SUM(CASE WHEN Score_2 = 2 THEN 1 ELSE 0 END) AS Score2, " +
+                "SUM(CASE WHEN Score = 1 THEN 1 ELSE 0 END) +  SUM(CASE WHEN Score_2 = 1 THEN 1 ELSE 0 END) AS Score1 " +
                 "FROM IVR_SURVEY_TRANS " +
                 "WHERE SURVEY_DATETIME >= ? AND SURVEY_DATETIME <= DATE_ADD(?, INTERVAL 1 DAY)",
               [currentDate, currentDate],
               (error, result) => {
+                console.log(result)
                 connection.release(); // Release the connection back to the pool
                 if (error) {
                   console.error(error);
@@ -403,6 +405,7 @@ const getPointReport = (req, res) => {
     EMPLOYEE.EMP_FIRSTNAME,
     DIVISION.DIVISION_NAME,
     IVR_SURVEY_TRANS.SCORE,
+    IVR_SURVEY_TRANS.SCORE_2,
     IVR_SURVEY_TRANS.MSISDN,
     IVR_SURVEY_TRANS.PLACE,
     IVR_SURVEY_TRANS.ROUTE_POINT,
@@ -422,22 +425,6 @@ const getPointReport = (req, res) => {
     AND IVR_SURVEY_TRANS.MSISDN LIKE CONCAT('%', ?, '%')
     AND IVR_SURVEY_TRANS.SCORE IN (?, ?, ?, ?, ?, ?)
 `;
-          console.log("Final SQL Query:", query);
-          console.log("Parameter Values:", [
-            startDate,
-            endDate,
-            DIVISION,
-            agent,
-            topic,
-            cusTel,
-            value1,
-            value2,
-            value3,
-            value4,
-            value5,
-            Noinput,
-          ]);
-
           connection.query(
             query,
             [
@@ -455,7 +442,6 @@ const getPointReport = (req, res) => {
               Noinput,
             ],
             (error, result) => {
-              console.log(result);
               connection.release(); // Release the connection back to the pool
 
               if (error) {
@@ -528,17 +514,19 @@ const getSummaryPointReport = (req, res) => {
 
         if (userRole === "supervisor") {
           query =
-            `SELECT 
+            `          SELECT 
             EMPLOYEE.EMP_FIRSTNAME, 
-            SUM(CASE WHEN IVR_SURVEY_TRANS.Score <> '98' THEN 1 ELSE 0 END) AS sumscore, 
-            AVG(CASE WHEN IVR_SURVEY_TRANS.Score <> '98' THEN IVR_SURVEY_TRANS.Score ELSE NULL END) AS avgscore, 
+            SUM(CASE WHEN IVR_SURVEY_TRANS.Score <> '98' THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 <> '98' THEN 1 ELSE 0 END) AS sumscore, 
+            AVG(CASE WHEN IVR_SURVEY_TRANS.Score <> '98' THEN CAST(IVR_SURVEY_TRANS.Score AS DECIMAL) ELSE NULL END) AS avgscore1, 
+            AVG(CASE WHEN IVR_SURVEY_TRANS.Score_2 <> '98' THEN CAST(IVR_SURVEY_TRANS.Score_2 AS DECIMAL) ELSE NULL END) AS avgscore2, 
+            (AVG(CASE WHEN IVR_SURVEY_TRANS.Score <> '98' THEN CAST(IVR_SURVEY_TRANS.Score AS DECIMAL) ELSE NULL END) + AVG(CASE WHEN IVR_SURVEY_TRANS.Score_2 <> '98' THEN CAST(IVR_SURVEY_TRANS.Score_2 AS DECIMAL) ELSE NULL END)) / 2 AS avgscore,
             COUNT(CASE WHEN IVR_SURVEY_TRANS.Score <> '98' THEN IVR_SURVEY_TRANS.Score END) AS scorelength, 
             COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = '98' THEN 1 ELSE NULL END) AS nodata, 
-            SUM(CASE WHEN IVR_SURVEY_TRANS.Score = '5' THEN 1 ELSE 0 END) AS Score5, 
-            SUM(CASE WHEN IVR_SURVEY_TRANS.Score = '4' THEN 1 ELSE 0 END) AS Score4, 
-            SUM(CASE WHEN IVR_SURVEY_TRANS.Score = '3' THEN 1 ELSE 0 END) AS Score3, 
-            SUM(CASE WHEN IVR_SURVEY_TRANS.Score = '2' THEN 1 ELSE 0 END) AS Score2, 
-            SUM(CASE WHEN IVR_SURVEY_TRANS.Score = '1' THEN 1 ELSE 0 END) AS Score1 
+            SUM(CASE WHEN IVR_SURVEY_TRANS.Score = '5' THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = '5' THEN 1 ELSE 0 END) AS Score5, 
+            SUM(CASE WHEN IVR_SURVEY_TRANS.Score = '4' THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = '4' THEN 1 ELSE 0 END) AS Score4, 
+            SUM(CASE WHEN IVR_SURVEY_TRANS.Score = '3' THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = '3' THEN 1 ELSE 0 END) AS Score3, 
+            SUM(CASE WHEN IVR_SURVEY_TRANS.Score = '2' THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = '2' THEN 1 ELSE 0 END) AS Score2, 
+            SUM(CASE WHEN IVR_SURVEY_TRANS.Score = '1' THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = '1' THEN 1 ELSE 0 END) AS Score1 
           FROM 
             IVR_SURVEY_TRANS 
           JOIN 
@@ -563,31 +551,34 @@ const getSummaryPointReport = (req, res) => {
           ];
         } else if (userRole === "manager") {
           query = `
-            SELECT 
-            EMPLOYEE.EMP_FIRSTNAME, 
-            SUM(CASE WHEN IVR_SURVEY_TRANS.Score <> '98' THEN 1 ELSE 0 END) AS sumscore, 
-            AVG(CASE WHEN IVR_SURVEY_TRANS.Score <> '98' THEN IVR_SURVEY_TRANS.Score ELSE NULL END) AS avgscore, 
-            COUNT(CASE WHEN IVR_SURVEY_TRANS.Score <> '98' THEN IVR_SURVEY_TRANS.Score END) AS scorelength, 
-            COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = '98' THEN 1 ELSE NULL END) AS nodata, 
-            SUM(CASE WHEN IVR_SURVEY_TRANS.Score = '5' THEN 1 ELSE 0 END) AS Score5, 
-            SUM(CASE WHEN IVR_SURVEY_TRANS.Score = '4' THEN 1 ELSE 0 END) AS Score4, 
-            SUM(CASE WHEN IVR_SURVEY_TRANS.Score = '3' THEN 1 ELSE 0 END) AS Score3, 
-            SUM(CASE WHEN IVR_SURVEY_TRANS.Score = '2' THEN 1 ELSE 0 END) AS Score2, 
-            SUM(CASE WHEN IVR_SURVEY_TRANS.Score = '1' THEN 1 ELSE 0 END) AS Score1 
-          FROM 
-            IVR_SURVEY_TRANS 
-          JOIN 
-            EMPLOYEE ON EMPLOYEE.EMP_ID = IVR_SURVEY_TRANS.AGENT_ID 
-          WHERE 
-            IVR_SURVEY_TRANS.SURVEY_DATETIME BETWEEN ? AND ?
-            AND EMPLOYEE.DIVISION_ID LIKE ?
-            AND EMPLOYEE.EMP_FIRSTNAME LIKE ?
-            AND IVR_SURVEY_TRANS.SURVEY_TOPIC LIKE ?
-          GROUP BY 
-            EMPLOYEE.EMP_FIRSTNAME 
-          ORDER BY 
-            EMPLOYEE.EMP_FIRSTNAME;
-          `;
+          SELECT 
+          EMPLOYEE.EMP_FIRSTNAME, 
+          SUM(CASE WHEN IVR_SURVEY_TRANS.Score <> '98' THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 <> '98' THEN 1 ELSE 0 END) AS sumscore, 
+          AVG(CASE WHEN IVR_SURVEY_TRANS.Score <> '98' THEN CAST(IVR_SURVEY_TRANS.Score AS DECIMAL) ELSE NULL END) AS avgscore1, 
+          AVG(CASE WHEN IVR_SURVEY_TRANS.Score_2 <> '98' THEN CAST(IVR_SURVEY_TRANS.Score_2 AS DECIMAL) ELSE NULL END) AS avgscore2, 
+          (AVG(CASE WHEN IVR_SURVEY_TRANS.Score <> '98' THEN CAST(IVR_SURVEY_TRANS.Score AS DECIMAL) ELSE NULL END) + AVG(CASE WHEN IVR_SURVEY_TRANS.Score_2 <> '98' THEN CAST(IVR_SURVEY_TRANS.Score_2 AS DECIMAL) ELSE NULL END)) / 2 AS avgscore,
+          COUNT(CASE WHEN IVR_SURVEY_TRANS.Score <> '98' THEN IVR_SURVEY_TRANS.Score END) AS scorelength, 
+          COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = '98' THEN 1 ELSE NULL END) AS nodata, 
+          SUM(CASE WHEN IVR_SURVEY_TRANS.Score = '5' THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = '5' THEN 1 ELSE 0 END) AS Score5, 
+          SUM(CASE WHEN IVR_SURVEY_TRANS.Score = '4' THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = '4' THEN 1 ELSE 0 END) AS Score4, 
+          SUM(CASE WHEN IVR_SURVEY_TRANS.Score = '3' THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = '3' THEN 1 ELSE 0 END) AS Score3, 
+          SUM(CASE WHEN IVR_SURVEY_TRANS.Score = '2' THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = '2' THEN 1 ELSE 0 END) AS Score2, 
+          SUM(CASE WHEN IVR_SURVEY_TRANS.Score = '1' THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = '1' THEN 1 ELSE 0 END) AS Score1 
+      FROM 
+          IVR_SURVEY_TRANS 
+      JOIN 
+          EMPLOYEE ON EMPLOYEE.EMP_ID = IVR_SURVEY_TRANS.AGENT_ID 
+      WHERE 
+          IVR_SURVEY_TRANS.SURVEY_DATETIME BETWEEN ? AND ?
+          AND EMPLOYEE.DIVISION_ID LIKE ?
+          AND EMPLOYEE.EMP_FIRSTNAME LIKE ?
+          AND IVR_SURVEY_TRANS.SURVEY_TOPIC LIKE ?
+      GROUP BY 
+          EMPLOYEE.EMP_FIRSTNAME 
+      ORDER BY 
+          EMPLOYEE.EMP_FIRSTNAME;
+`;
+
           
           queryParams = [
             data.startDateTime,
@@ -601,10 +592,6 @@ const getSummaryPointReport = (req, res) => {
         }
 
         connection.query(query, queryParams, (error, result) => {
-          console.log(query);
-          console.log(queryParams);
-          console.log(result);
-
           connection.release();
           if (error) {
             console.error(error);
@@ -705,11 +692,11 @@ const getDataForSearchGharp = (req, res) => {
           if (decoded.userRole === "supervisor") {
             query = `
               SELECT IVR_SURVEY_TRANS.SURVEY_TOPIC AS name,
-                     COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 5 THEN 1 ELSE NULL END) AS Score5,
-                     COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 4 THEN 1 ELSE NULL END) AS Score4,
-                     COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 3 THEN 1 ELSE NULL END) AS Score3,
-                     COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 2 THEN 1 ELSE NULL END) AS Score2,
-                     COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 1 THEN 1 ELSE NULL END) AS Score1
+                     COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 5 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 5 THEN 1 ELSE NULL END)AS Score5,
+                     COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 4 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 4 THEN 1 ELSE NULL END) AS Score4,
+                     COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 3 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 3 THEN 1 ELSE NULL END) AS Score3,
+                     COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 2 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 2 THEN 1 ELSE NULL END) AS Score2,
+                     COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 1 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 1 THEN 1 ELSE NULL END) AS Score1
               FROM IVR_SURVEY_TRANS
               JOIN EMPLOYEE ON EMPLOYEE.EMP_ID = IVR_SURVEY_TRANS.AGENT_ID
               WHERE IVR_SURVEY_TRANS.SURVEY_DATETIME >= ? AND IVR_SURVEY_TRANS.SURVEY_DATETIME < DATE_ADD(?, INTERVAL 1 DAY)
@@ -719,12 +706,12 @@ const getDataForSearchGharp = (req, res) => {
             params = [startDate, endDate, decoded.DIVISION_ID];
           } else if (decoded.userRole === "manager") {
             query = `
-              SELECT SURVEY_TOPIC AS name,
-                     COUNT(CASE WHEN Score = 5 THEN 1 ELSE NULL END) AS Score5,
-                     COUNT(CASE WHEN Score = 4 THEN 1 ELSE NULL END) AS Score4,
-                     COUNT(CASE WHEN Score = 3 THEN 1 ELSE NULL END) AS Score3,
-                     COUNT(CASE WHEN Score = 2 THEN 1 ELSE NULL END) AS Score2,
-                     COUNT(CASE WHEN Score = 1 THEN 1 ELSE NULL END) AS Score1
+            SELECT IVR_SURVEY_TRANS.SURVEY_TOPIC AS name,
+            COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 5 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 5 THEN 1 ELSE NULL END)AS Score5,
+            COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 4 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 4 THEN 1 ELSE NULL END) AS Score4,
+            COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 3 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 3 THEN 1 ELSE NULL END) AS Score3,
+            COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 2 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 2 THEN 1 ELSE NULL END) AS Score2,
+            COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 1 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 1 THEN 1 ELSE NULL END) AS Score1
               FROM IVR_SURVEY_TRANS
               WHERE IVR_SURVEY_TRANS.SURVEY_DATETIME >= ? AND IVR_SURVEY_TRANS.SURVEY_DATETIME < DATE_ADD(?, INTERVAL 1 DAY)
                     AND SURVEY_TOPIC <> ''
