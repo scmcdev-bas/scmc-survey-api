@@ -93,41 +93,82 @@ const getDataSet = (req, res) => {
           res.status(500).json({ error: "Error connecting to the database." });
           return;
         }
+
+        const currentDate = moment().format("YYYY-MM-DD");
+
         try {
-          const currentDate = moment().format("YYYY-MM-DD HH:mm:ss");
+          let query;
+          let queryParams;
 
-          const query = `SELECT IVR_SURVEY_TRANS.SURVEY_TOPIC AS name, 
-          SUM(CASE WHEN IVR_SURVEY_TRANS.Score = 5 THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 5 THEN 1 ELSE 0 END) AS Score5, 
-          SUM(CASE WHEN IVR_SURVEY_TRANS.Score = 4 THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 4 THEN 1 ELSE 0 END) AS Score4, 
-          SUM(CASE WHEN IVR_SURVEY_TRANS.Score = 3 THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 3 THEN 1 ELSE 0 END) AS Score3, 
-          SUM(CASE WHEN IVR_SURVEY_TRANS.Score = 2 THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 2 THEN 1 ELSE 0 END) AS Score2, 
-          SUM(CASE WHEN IVR_SURVEY_TRANS.Score = 1 THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 1 THEN 1 ELSE 0 END) AS Score1 
-          FROM IVR_SURVEY_TRANS 
-          JOIN EMPLOYEE ON EMPLOYEE.EMP_ID = IVR_SURVEY_TRANS.AGENT_ID 
-          WHERE SURVEY_TOPIC <> '' 
-          AND EMPLOYEE.DIVISION_ID = ?
-          AND SURVEY_DATETIME >= ? 
-          AND SURVEY_DATETIME <= DATE_ADD(?, INTERVAL 1 DAY) 
-          GROUP BY SURVEY_TOPIC;`;
+          if (decoded.userRole === "agent") {
+            query = `SELECT IVR_SURVEY_TRANS.SURVEY_TOPIC AS name, 
+              SUM(CASE WHEN IVR_SURVEY_TRANS.Score = 5 THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 5 THEN 1 ELSE 0 END) AS Score5, 
+              SUM(CASE WHEN IVR_SURVEY_TRANS.Score = 4 THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 4 THEN 1 ELSE 0 END) AS Score4, 
+              SUM(CASE WHEN IVR_SURVEY_TRANS.Score = 3 THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 3 THEN 1 ELSE 0 END) AS Score3, 
+              SUM(CASE WHEN IVR_SURVEY_TRANS.Score = 2 THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 2 THEN 1 ELSE 0 END) AS Score2, 
+              SUM(CASE WHEN IVR_SURVEY_TRANS.Score = 1 THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 1 THEN 1 ELSE 0 END) AS Score1,
+              SUM(CASE WHEN IVR_SURVEY_TRANS.Score = 98 THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 98 THEN 1 ELSE 0 END) AS nodata
+              FROM IVR_SURVEY_TRANS 
+              JOIN EMPLOYEE ON EMPLOYEE.EMP_ID = IVR_SURVEY_TRANS.AGENT_ID 
+              WHERE SURVEY_TOPIC <> '' 
+              AND IVR_SURVEY_TRANS.AGENT_ID = ?
+              AND SURVEY_DATETIME >= ? 
+              AND SURVEY_DATETIME <= DATE_ADD(?, INTERVAL 1 DAY) 
+              GROUP BY SURVEY_TOPIC;`;
 
-          connection.query(
-            query,
-            [decoded.DIVISION_ID, currentDate, currentDate],
-            (error, result) => {
-              if (error) {
-                console.error(error);
-                res.status(400).json({ error: "Error while querying data." });
-              } else {
-                res.status(200).json(result);
-              }
-              connection.release(); // Release the connection back to the pool
+            queryParams = [decoded.userID, currentDate, currentDate];
+            console.log(queryParams);
+          } else if (decoded.userRole === "supervisor") {
+            query = `SELECT IVR_SURVEY_TRANS.SURVEY_TOPIC AS name, 
+              SUM(CASE WHEN IVR_SURVEY_TRANS.Score = 5 THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 5 THEN 1 ELSE 0 END) AS Score5, 
+              SUM(CASE WHEN IVR_SURVEY_TRANS.Score = 4 THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 4 THEN 1 ELSE 0 END) AS Score4, 
+              SUM(CASE WHEN IVR_SURVEY_TRANS.Score = 3 THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 3 THEN 1 ELSE 0 END) AS Score3, 
+              SUM(CASE WHEN IVR_SURVEY_TRANS.Score = 2 THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 2 THEN 1 ELSE 0 END) AS Score2, 
+              SUM(CASE WHEN IVR_SURVEY_TRANS.Score = 1 THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 1 THEN 1 ELSE 0 END) AS Score1,
+              SUM(CASE WHEN IVR_SURVEY_TRANS.Score = 98 THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 98 THEN 1 ELSE 0 END) AS nodata
+              FROM IVR_SURVEY_TRANS 
+              JOIN EMPLOYEE ON EMPLOYEE.EMP_ID = IVR_SURVEY_TRANS.AGENT_ID 
+              WHERE SURVEY_TOPIC <> '' 
+              AND EMPLOYEE.DIVISION_ID = ?
+              AND SURVEY_DATETIME >= ? 
+              AND SURVEY_DATETIME <= DATE_ADD(?, INTERVAL 1 DAY) 
+              GROUP BY SURVEY_TOPIC;`;
+
+            queryParams = [decoded.DIVISION_ID, currentDate, currentDate];
+          } else if (decoded.userRole === "manager") {
+            query = `SELECT IVR_SURVEY_TRANS.SURVEY_TOPIC AS name, 
+              SUM(CASE WHEN IVR_SURVEY_TRANS.Score = 5 THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 5 THEN 1 ELSE 0 END) AS Score5, 
+              SUM(CASE WHEN IVR_SURVEY_TRANS.Score = 4 THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 4 THEN 1 ELSE 0 END) AS Score4, 
+              SUM(CASE WHEN IVR_SURVEY_TRANS.Score = 3 THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 3 THEN 1 ELSE 0 END) AS Score3, 
+              SUM(CASE WHEN IVR_SURVEY_TRANS.Score = 2 THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 2 THEN 1 ELSE 0 END) AS Score2, 
+              SUM(CASE WHEN IVR_SURVEY_TRANS.Score = 1 THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 1 THEN 1 ELSE 0 END) AS Score1,
+              SUM(CASE WHEN IVR_SURVEY_TRANS.Score = 98 THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 98 THEN 1 ELSE 0 END) AS nodata
+              FROM IVR_SURVEY_TRANS 
+              JOIN EMPLOYEE ON EMPLOYEE.EMP_ID = IVR_SURVEY_TRANS.AGENT_ID 
+              WHERE SURVEY_TOPIC <> '' 
+              AND SURVEY_DATETIME >= ? 
+              AND SURVEY_DATETIME <= DATE_ADD(?, INTERVAL 1 DAY) 
+              GROUP BY SURVEY_TOPIC;`;
+
+            queryParams = [currentDate, currentDate];
+          }
+
+          connection.query(query, queryParams, (error, result) => {
+            if (error) {
+              console.error(error);
+              res.status(400).json({ error: "Error while querying data." });
+            } else {
+              console.log(result);
+              res.status(200).json(result);
             }
-          );
+          });
         } catch (error) {
           console.error(error);
           res
             .status(500)
             .json({ error: "Error while processing the request." });
+        } finally {
+          connection.release(); // Release the connection back to the pool
         }
       });
     }
@@ -196,16 +237,46 @@ const getDataSetPercentage = (req, res) => {
         }
 
         try {
-          const currentDate = moment().format("YYYY-MM-DD HH:mm:ss");
+          const currentDate = moment().format("YYYY-MM-DD");
 
-          const query = `
+          let query;
+          let queryParams;
+
+          if (decoded.userRole === "agent") {
+            query = `
             SELECT IVR_SURVEY_TRANS.SURVEY_TOPIC AS name, 
             COUNT(IVR_SURVEY_TRANS.Score) AS scorelength,
             COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 5 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 5 THEN 1 ELSE NULL END) AS Score5, 
             COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 4 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 4 THEN 1 ELSE NULL END) AS Score4, 
             COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 3 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 3 THEN 1 ELSE NULL END) AS Score3, 
             COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 2 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 2 THEN 1 ELSE NULL END) AS Score2, 
-            COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 1 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 1 THEN 1 ELSE NULL END) AS Score1 
+            COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 1 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 1 THEN 1 ELSE NULL END) AS Score1,
+            COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 98 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 98 THEN 1 ELSE NULL END) AS nodata
+            FROM IVR_SURVEY_TRANS 
+            JOIN EMPLOYEE ON EMPLOYEE.EMP_ID = IVR_SURVEY_TRANS.AGENT_ID 
+            WHERE SURVEY_TOPIC <> '' 
+            AND IVR_SURVEY_TRANS.AGENT_ID = ?
+            AND EMPLOYEE.DIVISION_ID = ? 
+            AND SURVEY_DATETIME >= ? 
+            AND SURVEY_DATETIME <= DATE_ADD(?, INTERVAL 1 DAY) 
+            GROUP BY SURVEY_TOPIC;`;
+
+            queryParams = [
+              decoded.userID,
+              decoded.DIVISION_ID,
+              currentDate,
+              currentDate,
+            ];
+          } else if (decoded.userRole === "supervisor") {
+            query = `
+            SELECT IVR_SURVEY_TRANS.SURVEY_TOPIC AS name, 
+            COUNT(IVR_SURVEY_TRANS.Score) AS scorelength,
+            COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 5 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 5 THEN 1 ELSE NULL END) AS Score5, 
+            COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 4 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 4 THEN 1 ELSE NULL END) AS Score4, 
+            COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 3 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 3 THEN 1 ELSE NULL END) AS Score3, 
+            COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 2 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 2 THEN 1 ELSE NULL END) AS Score2, 
+            COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 1 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 1 THEN 1 ELSE NULL END) AS Score1,
+            COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 98 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 98 THEN 1 ELSE NULL END) AS nodata
             FROM IVR_SURVEY_TRANS 
             JOIN EMPLOYEE ON EMPLOYEE.EMP_ID = IVR_SURVEY_TRANS.AGENT_ID 
             WHERE SURVEY_TOPIC <> '' 
@@ -214,24 +285,42 @@ const getDataSetPercentage = (req, res) => {
             AND SURVEY_DATETIME <= DATE_ADD(?, INTERVAL 1 DAY) 
             GROUP BY SURVEY_TOPIC;`;
 
-          connection.query(
-            query,
-            [decoded.DIVISION_ID, currentDate, currentDate],
-            (error, result) => {
-              if (error) {
-                console.log(error);
-                res.status(400).json({ error: "Error while querying data." });
-              } else {
-                res.status(200).json(calculate(result));
-              }
-              connection.release(); // Release the connection back to the pool
+            queryParams = [decoded.DIVISION_ID, currentDate, currentDate];
+          } else if (decoded.userRole === "manager") {
+            query = `
+            SELECT IVR_SURVEY_TRANS.SURVEY_TOPIC AS name, 
+            COUNT(IVR_SURVEY_TRANS.Score) AS scorelength,
+            COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 5 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 5 THEN 1 ELSE NULL END) AS Score5, 
+            COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 4 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 4 THEN 1 ELSE NULL END) AS Score4, 
+            COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 3 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 3 THEN 1 ELSE NULL END) AS Score3, 
+            COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 2 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 2 THEN 1 ELSE NULL END) AS Score2, 
+            COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 1 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 1 THEN 1 ELSE NULL END) AS Score1,
+            COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 98 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 98 THEN 1 ELSE NULL END) AS nodata
+            FROM IVR_SURVEY_TRANS 
+            JOIN EMPLOYEE ON EMPLOYEE.EMP_ID = IVR_SURVEY_TRANS.AGENT_ID 
+            WHERE SURVEY_TOPIC <> '' 
+            AND SURVEY_DATETIME >= ? 
+            AND SURVEY_DATETIME <= DATE_ADD(?, INTERVAL 1 DAY) 
+            GROUP BY SURVEY_TOPIC;`;
+
+            queryParams = [currentDate, currentDate];
+          }
+
+          connection.query(query, queryParams, (error, result) => {
+            if (error) {
+              console.error(error);
+              res.status(400).json({ error: "Error while querying data." });
+            } else {
+              res.status(200).json(calculate(result));
             }
-          );
+          });
         } catch (error) {
-          console.log(error);
+          console.error(error);
           res
             .status(500)
-            .json({ error: "Error while connecting to the database." });
+            .json({ error: "Error while processing the request." });
+        } finally {
+          connection.release(); // Release the connection back to the pool
         }
       });
     }
@@ -245,7 +334,7 @@ const getDataSetPercentageAdmin = (req, res) => {
       res.status(200).json(false, "Invalid token");
     } else {
       try {
-        const currentDate = moment().format("YYYY-MM-DD HH:mm:ss");
+        const currentDate = moment().format("YYYY-MM-DD");
 
         pool.getConnection((err, connection) => {
           if (err) {
@@ -264,7 +353,7 @@ const getDataSetPercentageAdmin = (req, res) => {
                 "WHERE SURVEY_DATETIME >= ? AND SURVEY_DATETIME <= DATE_ADD(?, INTERVAL 1 DAY)",
               [currentDate, currentDate],
               (error, result) => {
-                console.log(result)
+                console.log(result);
                 connection.release(); // Release the connection back to the pool
                 if (error) {
                   console.error(error);
@@ -331,7 +420,7 @@ const getSupervisor = (req, res) => {
           res.status(500).json("Error connecting to database");
           return;
         }
-
+        console.log(decoded.userRole);
         if (decoded.userRole === "supervisor") {
           try {
             const query =
@@ -366,6 +455,8 @@ const getSupervisor = (req, res) => {
             console.log(error);
             res.status(500).json("Error while connecting to the database");
           }
+        } else if (decoded.userRole === "agent") {
+          res.status(200).json([]);
         }
       });
     }
@@ -391,12 +482,67 @@ const getPointReport = (req, res) => {
       const agent = req.body.agent;
       const startDate = req.body.startDateTime;
       const endDate = req.body.endDateTime;
-
+      console.log(decoded);
       pool.getConnection((err, connection) => {
         if (err) {
           console.error("Error getting connection from pool:", err);
           res.status(500).json({ error: "Error getting connection from pool" });
-        } else {
+        } else if (decoded.userRole === "manager") {
+          const query = `
+  SELECT DISTINCT
+    DATE_FORMAT(IVR_SURVEY_TRANS.SURVEY_DATETIME, '%Y-%m-%d') AS Date,
+    TIME(IVR_SURVEY_TRANS.SURVEY_DATETIME) AS Time,
+    IVR_SURVEY_TRANS.AGENT_ID,
+    EMPLOYEE.EMP_FIRSTNAME,
+    DIVISION.DIVISION_NAME,
+    IVR_SURVEY_TRANS.SCORE,
+    IVR_SURVEY_TRANS.SCORE_2,
+    IVR_SURVEY_TRANS.MSISDN,
+    IVR_SURVEY_TRANS.PLACE,
+    IVR_SURVEY_TRANS.ROUTE_POINT,
+    IVR_SURVEY_TRANS.SURVEY_TOPIC,
+    EMPLOYEE2.EMP_FIRSTNAME AS SUPERVISOR
+  FROM
+    IVR_SURVEY_TRANS
+    JOIN EMPLOYEE ON EMPLOYEE.EMP_ID = IVR_SURVEY_TRANS.AGENT_ID
+    JOIN DIVISION ON DIVISION.DIVISION_ID = EMPLOYEE.DIVISION_ID
+    JOIN EMPLOYEE AS EMPLOYEE2 ON EMPLOYEE.DIVISION_ID = EMPLOYEE2.DIVISION_ID AND EMPLOYEE2.ROLE_ID = '2'
+  WHERE
+    IVR_SURVEY_TRANS.SURVEY_DATETIME BETWEEN ? AND ?
+    AND DIVISION.DIVISION_ID IS NOT NULL
+    AND EMPLOYEE.EMP_FIRSTNAME LIKE CONCAT('%', ?, '%')
+    AND IVR_SURVEY_TRANS.SURVEY_TOPIC LIKE CONCAT('%', ?, '%')
+    AND IVR_SURVEY_TRANS.MSISDN LIKE CONCAT('%', ?, '%')
+    AND IVR_SURVEY_TRANS.SCORE IN (?, ?, ?, ?, ?, ?)
+`;
+          connection.query(
+            query,
+            [
+              startDate,
+              endDate,
+              agent,
+              topic,
+              cusTel,
+              value1,
+              value2,
+              value3,
+              value4,
+              value5,
+              Noinput,
+            ],
+            (error, result) => {
+              connection.release(); // Release the connection back to the pool
+
+              if (error) {
+                console.log(error);
+                res.status(400).json({ error: "Error while querying data." });
+              } else {
+                let data = result;
+                res.status(200).json(data);
+              }
+            }
+          );
+        } else if (decoded.userRole === "supervisor") {
           const query = `
   SELECT DISTINCT
     DATE_FORMAT(IVR_SURVEY_TRANS.SURVEY_DATETIME, '%Y-%m-%d') AS Date,
@@ -440,6 +586,65 @@ const getPointReport = (req, res) => {
               value4,
               value5,
               Noinput,
+            ],
+            (error, result) => {
+              connection.release(); // Release the connection back to the pool
+
+              if (error) {
+                console.log(error);
+                res.status(400).json({ error: "Error while querying data." });
+              } else {
+                let data = result;
+                res.status(200).json(data);
+              }
+            }
+          );
+        } else if (decoded.userRole === "agent") {
+          const query = `
+  SELECT DISTINCT
+    DATE_FORMAT(IVR_SURVEY_TRANS.SURVEY_DATETIME, '%Y-%m-%d') AS Date,
+    TIME(IVR_SURVEY_TRANS.SURVEY_DATETIME) AS Time,
+    IVR_SURVEY_TRANS.AGENT_ID,
+    EMPLOYEE.EMP_FIRSTNAME,
+    DIVISION.DIVISION_NAME,
+    IVR_SURVEY_TRANS.SCORE,
+    IVR_SURVEY_TRANS.SCORE_2,
+    IVR_SURVEY_TRANS.MSISDN,
+    IVR_SURVEY_TRANS.PLACE,
+    IVR_SURVEY_TRANS.ROUTE_POINT,
+    IVR_SURVEY_TRANS.SURVEY_TOPIC,
+    EMPLOYEE2.EMP_FIRSTNAME AS SUPERVISOR
+  FROM
+    IVR_SURVEY_TRANS
+    JOIN EMPLOYEE ON EMPLOYEE.EMP_ID = IVR_SURVEY_TRANS.AGENT_ID
+    JOIN DIVISION ON DIVISION.DIVISION_ID = EMPLOYEE.DIVISION_ID
+    JOIN EMPLOYEE AS EMPLOYEE2 ON EMPLOYEE.DIVISION_ID = EMPLOYEE2.DIVISION_ID AND EMPLOYEE2.ROLE_ID = '2'
+  WHERE
+    IVR_SURVEY_TRANS.SURVEY_DATETIME BETWEEN ? AND ?
+    AND DIVISION.DIVISION_ID IS NOT NULL
+    AND DIVISION.DIVISION_ID != ?
+    AND EMPLOYEE.EMP_FIRSTNAME LIKE CONCAT('%', ?, '%')
+    AND IVR_SURVEY_TRANS.SURVEY_TOPIC LIKE CONCAT('%', ?, '%')
+    AND IVR_SURVEY_TRANS.MSISDN LIKE CONCAT('%', ?, '%')
+    AND IVR_SURVEY_TRANS.SCORE IN (?, ?, ?, ?, ?, ?)
+    AND AGENT_ID = ?
+`;
+          connection.query(
+            query,
+            [
+              startDate,
+              endDate,
+              DIVISION,
+              agent,
+              topic,
+              cusTel,
+              value1,
+              value2,
+              value3,
+              value4,
+              value5,
+              Noinput,
+              decoded.userID,
             ],
             (error, result) => {
               connection.release(); // Release the connection back to the pool
@@ -513,8 +718,7 @@ const getSummaryPointReport = (req, res) => {
         let query, queryParams;
 
         if (userRole === "supervisor") {
-          query =
-            `          SELECT 
+          query = `          SELECT 
             EMPLOYEE.EMP_FIRSTNAME, 
             SUM(CASE WHEN IVR_SURVEY_TRANS.Score <> '98' THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 <> '98' THEN 1 ELSE 0 END) AS sumscore, 
             AVG(CASE WHEN IVR_SURVEY_TRANS.Score <> '98' THEN CAST(IVR_SURVEY_TRANS.Score AS DECIMAL) ELSE NULL END) AS avgscore1, 
@@ -541,7 +745,7 @@ const getSummaryPointReport = (req, res) => {
           ORDER BY 
             EMPLOYEE.EMP_FIRSTNAME;
           `;
-            
+
           queryParams = [
             data.startDateTime,
             data.endDateTime,
@@ -579,13 +783,51 @@ const getSummaryPointReport = (req, res) => {
           EMPLOYEE.EMP_FIRSTNAME;
 `;
 
-          
           queryParams = [
             data.startDateTime,
             data.endDateTime,
             `%${data.supervisor}%`,
             `%${data.agent}%`,
             `%${data.reportTopic}%`,
+          ];
+        } else if (userRole === "agent") {
+          query = `
+          SELECT 
+          EMPLOYEE.EMP_FIRSTNAME, 
+          SUM(CASE WHEN IVR_SURVEY_TRANS.Score <> '98' THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 <> '98' THEN 1 ELSE 0 END) AS sumscore, 
+          AVG(CASE WHEN IVR_SURVEY_TRANS.Score <> '98' THEN CAST(IVR_SURVEY_TRANS.Score AS DECIMAL) ELSE NULL END) AS avgscore1, 
+          AVG(CASE WHEN IVR_SURVEY_TRANS.Score_2 <> '98' THEN CAST(IVR_SURVEY_TRANS.Score_2 AS DECIMAL) ELSE NULL END) AS avgscore2, 
+          (AVG(CASE WHEN IVR_SURVEY_TRANS.Score <> '98' THEN CAST(IVR_SURVEY_TRANS.Score AS DECIMAL) ELSE NULL END) + AVG(CASE WHEN IVR_SURVEY_TRANS.Score_2 <> '98' THEN CAST(IVR_SURVEY_TRANS.Score_2 AS DECIMAL) ELSE NULL END)) / 2 AS avgscore,
+          COUNT(CASE WHEN IVR_SURVEY_TRANS.Score <> '98' THEN IVR_SURVEY_TRANS.Score END) AS scorelength, 
+          COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = '98' THEN 1 ELSE NULL END) AS nodata, 
+          SUM(CASE WHEN IVR_SURVEY_TRANS.Score = '5' THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = '5' THEN 1 ELSE 0 END) AS Score5, 
+          SUM(CASE WHEN IVR_SURVEY_TRANS.Score = '4' THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = '4' THEN 1 ELSE 0 END) AS Score4, 
+          SUM(CASE WHEN IVR_SURVEY_TRANS.Score = '3' THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = '3' THEN 1 ELSE 0 END) AS Score3, 
+          SUM(CASE WHEN IVR_SURVEY_TRANS.Score = '2' THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = '2' THEN 1 ELSE 0 END) AS Score2, 
+          SUM(CASE WHEN IVR_SURVEY_TRANS.Score = '1' THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = '1' THEN 1 ELSE 0 END) AS Score1 
+      FROM 
+          IVR_SURVEY_TRANS 
+      JOIN 
+          EMPLOYEE ON EMPLOYEE.EMP_ID = IVR_SURVEY_TRANS.AGENT_ID 
+      WHERE 
+          IVR_SURVEY_TRANS.SURVEY_DATETIME BETWEEN ? AND ?
+          AND EMPLOYEE.DIVISION_ID LIKE ?
+          AND EMPLOYEE.EMP_FIRSTNAME LIKE ?
+          AND IVR_SURVEY_TRANS.SURVEY_TOPIC LIKE ?
+          AND EMPLOYEE.EMP_ID = ?
+      GROUP BY 
+          EMPLOYEE.EMP_FIRSTNAME 
+      ORDER BY 
+          EMPLOYEE.EMP_FIRSTNAME;
+`;
+
+          queryParams = [
+            data.startDateTime,
+            data.endDateTime,
+            `%${data.supervisor}%`,
+            `%${data.agent}%`,
+            `%${data.reportTopic}%`,
+            decoded.userID,
           ];
         } else {
           throw new Error("Invalid user role");
@@ -612,7 +854,6 @@ const getSummaryPointReport = (req, res) => {
     });
   });
 };
-
 
 const insertAgent = (req, res) => {
   jwt.verify(req.query.token, secretKey, async (err) => {
@@ -718,6 +959,21 @@ const getDataForSearchGharp = (req, res) => {
               GROUP BY SURVEY_TOPIC`;
 
             params = [startDate, endDate];
+          } else if (decoded.userRole === "agent") {
+            query = `
+            SELECT IVR_SURVEY_TRANS.SURVEY_TOPIC AS name,
+            COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 5 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 5 THEN 1 ELSE NULL END)AS Score5,
+            COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 4 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 4 THEN 1 ELSE NULL END) AS Score4,
+            COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 3 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 3 THEN 1 ELSE NULL END) AS Score3,
+            COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 2 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 2 THEN 1 ELSE NULL END) AS Score2,
+            COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 1 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 1 THEN 1 ELSE NULL END) AS Score1
+            
+              FROM IVR_SURVEY_TRANS
+              WHERE IVR_SURVEY_TRANS.SURVEY_DATETIME >= ? AND IVR_SURVEY_TRANS.SURVEY_DATETIME < DATE_ADD(?, INTERVAL 1 DAY)
+                    AND SURVEY_TOPIC <> '' AND AGENT_ID = ?
+              GROUP BY SURVEY_TOPIC`;
+
+            params = [startDate, endDate, decoded.userID];
           }
 
           connection.query(query, params, (error, result) => {
@@ -734,7 +990,6 @@ const getDataForSearchGharp = (req, res) => {
     }
   });
 };
-
 
 const getDataForSearchPercentage = (req, res) => {
   jwt.verify(req.body.token, secretKey, (err, decoded) => {
@@ -781,6 +1036,20 @@ const getDataForSearchPercentage = (req, res) => {
               WHERE IVR_SURVEY_TRANS.SURVEY_DATETIME >= ? AND IVR_SURVEY_TRANS.SURVEY_DATETIME < DATE_ADD(?, INTERVAL 1 DAY)`;
 
             params = [startDate, endDate];
+          } else if (decoded.userRole === "agent") {
+            query = `
+              SELECT COUNT(Score) AS scorelength,
+                     COUNT(CASE WHEN Score = 98 THEN 1 ELSE NULL END)  AS nodata,
+                     COUNT(CASE WHEN Score = 5 THEN 1 ELSE NULL END)  AS Score5,
+                     COUNT(CASE WHEN Score = 4 THEN 1 ELSE NULL END)  AS Score4,
+                     COUNT(CASE WHEN Score = 3 THEN 1 ELSE NULL END)  AS Score3,
+                     COUNT(CASE WHEN Score = 2 THEN 1 ELSE NULL END)  AS Score2,
+                     COUNT(CASE WHEN Score = 1 THEN 1 ELSE NULL END)  AS Score1
+              FROM IVR_SURVEY_TRANS
+              WHERE IVR_SURVEY_TRANS.SURVEY_DATETIME >= ? AND IVR_SURVEY_TRANS.SURVEY_DATETIME < DATE_ADD(?, INTERVAL 1 DAY)
+              AND AGENT_ID = ?`;
+
+            params = [startDate, endDate, decoded.userID];
           }
 
           connection.query(query, params, (error, result) => {

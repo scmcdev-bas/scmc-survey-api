@@ -41,6 +41,7 @@ const calculate = (result) => {
   
     let scorelength = data.scorelength;
     let exportdata = [scorelength, dataset];
+    console.log(exportdata)
     return exportdata;
   };
   

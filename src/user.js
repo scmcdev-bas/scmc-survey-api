@@ -74,6 +74,89 @@ const login = (req, res) => {
   }
 };
 
+const changePassword = (req, res) => {
+  const { newPassword, password } = req.body;
+  jwt.verify(req.body.token, secretKey, (err, decoded) => {
+    if (err) {
+      console.error("Invalid token:", req.body.token);
+      res.status(200).json({ success: false, error: "Invalid token" });
+    } else {
+      try {
+        pool.getConnection((err, connection) => {
+          if (err) {
+            console.error("Error connecting to database: ", err);
+            res.status(500).json({ error: "Error connecting to database." });
+            return;
+          }
+
+          const username = decoded.userName;
+          const hashedPassword = Buffer.from(password).toString("base64");
+          const hashedNewPassword = Buffer.from(newPassword).toString("base64");
+
+          const selectQuery = `
+            SELECT USER_PASSWORD.USERNAME, USER_PASSWORD.PASSWORD, ROLE.ROLE_NAME, EMPLOYEE.DIVISION_ID, EMPLOYEE.EMP_ID
+            FROM USER_PASSWORD
+            JOIN EMPLOYEE ON EMPLOYEE.EMP_ID = USER_PASSWORD.EMP_ID
+            JOIN ROLE ON EMPLOYEE.ROLE_ID = ROLE.ROLE_ID
+            WHERE USER_PASSWORD.USERNAME = ?`;
+
+          connection.query(
+            selectQuery,
+            [username],
+            (error, results, fields) => {
+              if (error) {
+                console.error("Error while querying data: ", error);
+                connection.release();
+                res.status(500).json({ error: "Error while querying data." });
+                return;
+              }
+
+              if (results.length === 1) {
+                const storedPassword = results[0].PASSWORD;
+                console.log(hashedPassword, " ", storedPassword);
+
+                if (hashedPassword === storedPassword) {
+                  const updateQuery = `
+                  UPDATE USER_PASSWORD
+                  SET PASSWORD = ?
+                  WHERE USERNAME = ?`;
+
+                  connection.query(
+                    updateQuery,
+                    [hashedNewPassword, username],
+                    (updateError, updateResults, updateFields) => {
+                      connection.release();
+
+                      if (updateError) {
+                        console.error("Error updating password: ", updateError);
+                        res
+                          .status(500)
+                          .json({ error: "Error updating password." });
+                      } else {
+                        res.status(200).json({ success: true });
+                      }
+                    }
+                  );
+                } else {
+                  console.error("Invalid Password");
+                  connection.release();
+                  res.status(401).json({ error: "Invalid Password" });
+                }
+              } else {
+                connection.release();
+                res.status(404).json({ error: "User not found" });
+              }
+            }
+          );
+        });
+      } catch (error) {
+        res.status(500).json({ error: "An error occurred." });
+        console.error("An error occurred: ", error);
+      }
+    }
+  });
+};
+
 const addUser = (req, res) => {
   jwt.verify(req.body.token, secretKey, (err, decoded) => {
     if (err) {
@@ -230,4 +313,5 @@ module.exports = {
   verifyAdmin,
   verifyUser,
   verifyLogin,
+  changePassword
 };

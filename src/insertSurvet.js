@@ -1,5 +1,5 @@
 const jwt = require("jsonwebtoken");
-const pool = require("./db"); // Assuming you have a pool object for your database connection
+const pool = require("./db"); 
 const moment = require("moment");
 const config = require('../config');
 
@@ -26,8 +26,8 @@ const insertSurvey = async (req, res, next) => {
         console.log('data',data)
         const query = `INSERT INTO IVR_SURVEY_TRANS
           (SURVEY_DATETIME, TRANS_ID, ROUTE_POINT, AGENT_ID, PLACE, LAST_MENU,
-            MSISDN, LANGUAGE, SCORE, SCORE_2, INSERT_DATE, SURVEY_TOPIC, NO_MATCH_SCORE)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`;
+            MSISDN, LANGUAGE, SCORE, SCORE_2, INSERT_DATE, SURVEY_TOPIC, NO_MATCH_SCORE,RESERVE_1,RESERVE_2,RESERVE_3,RESERVE_4,RESERVE_5,CALL_TYPE)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`;
 
         connection.query(
           query,
@@ -45,6 +45,12 @@ const insertSurvey = async (req, res, next) => {
             moment().format("YYYY-MM-DD HH:mm:ss.SSS"),
             data.SURVEY_TOPIC,
             data.NO_MATCH_SCORE,
+            data.RESERVE_1,
+            data.RESERVE_2,
+            data.RESERVE_3,
+            data.RESERVE_4,
+            data.RESERVE_5,
+            data.CALL_TYPE
           ],
           (error, result) => {
             if (error) {
@@ -53,7 +59,7 @@ const insertSurvey = async (req, res, next) => {
             } else {
               res.status(200).json(result);
             }
-            connection.release(); // Release the connection back to the pool
+            connection.release(); 
           }
         );
       } catch (error) {
