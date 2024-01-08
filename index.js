@@ -24,6 +24,8 @@ const {
   searchManagerData,
   searchUser,
   deleteAgent,
+  deleteUser,
+  getNoAgentData
 } = require("./src/search");
 const userRoutes = require("./src/user");
 const getDataFunction = require("./src/getdata");
@@ -41,7 +43,8 @@ app.post("/searchagentdata", searchAgentData);
 app.post("/searchmanagerdata", searchManagerData);
 app.post("/searchuser", searchUser);
 app.post("/deleteagent", deleteAgent);
-
+app.post("/deleteuser", deleteUser);
+app.post("/getnoagentdata",getNoAgentData)
 app.post("/login", userRoutes.login);
 app.post("/adduser", userRoutes.addUser);
 app.post("/verifyadmin", userRoutes.verifyAdmin);

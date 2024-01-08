@@ -5,7 +5,7 @@ const config = require('../config');
 
 const insertSurvey = async (req, res, next) => {
   const apikey = req.headers["api_key"];
-
+  console.log(req.headers)
   try {
     if (!apikey) {
       return res.status(401).json({ message: "API key is not entered" });
@@ -32,25 +32,25 @@ const insertSurvey = async (req, res, next) => {
         connection.query(
           query,
           [
-            data.SURVEY_DATETIME,
-            data.TRANS_ID,
-            data.ROUTE_POINT,
-            data.AGENT_ID,
-            data.PLACE,
-            data.LAST_MENU,
-            data.MSISDN,
-            data.LANGUAGE,
-            data.SCORE,
-            data.SCORE_2,
+            data.SURVEY_DATETIME.toString(),
+            data.TRANS_ID.toString(),
+            data.ROUTE_POINT.toString(),
+            data.AGENT_ID.toString(),
+            data.PLACE.toString(),
+            data.LAST_MENU.toString(),
+            data.MSISDN.toString(),
+            data.LANGUAGE.toString(),
+            data.SCORE.toString(),
+            data.SCORE_2.toString(),
             moment().format("YYYY-MM-DD HH:mm:ss.SSS"),
-            data.SURVEY_TOPIC,
-            data.NO_MATCH_SCORE,
-            data.RESERVE_1,
-            data.RESERVE_2,
-            data.RESERVE_3,
-            data.RESERVE_4,
-            data.RESERVE_5,
-            data.CALL_TYPE
+            data.SURVEY_TOPIC.toString(),
+            data.NO_MATCH_SCORE.toString(),
+            data.RESERVE_1.toString(),
+            data.RESERVE_2.toString(),
+            data.RESERVE_3.toString(),
+            data.RESERVE_4.toString(),
+            data.RESERVE_5.toString(),
+            data.CALL_TYPE.toString()
           ],
           (error, result) => {
             if (error) {
