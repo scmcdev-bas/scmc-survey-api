@@ -25,7 +25,11 @@ const {
   searchUser,
   deleteAgent,
   deleteUser,
-  getNoAgentData
+  getNoAgentData,
+  searchTeam,
+  deleteTeam,
+  editTeam,
+  newTeam
 } = require("./src/search");
 const userRoutes = require("./src/user");
 const getDataFunction = require("./src/getdata");
@@ -45,12 +49,19 @@ app.post("/searchuser", searchUser);
 app.post("/deleteagent", deleteAgent);
 app.post("/deleteuser", deleteUser);
 app.post("/getnoagentdata",getNoAgentData)
+app.post("/searchTeam", searchTeam);
+app.post("/deleteteam", deleteTeam);
+app.post("/editteam", editTeam);
+app.post("/newteam", newTeam);
+
 app.post("/login", userRoutes.login);
 app.post("/adduser", userRoutes.addUser);
 app.post("/verifyadmin", userRoutes.verifyAdmin);
 app.post("/verifyuser", userRoutes.verifyUser);
 app.post("/verifylogin", userRoutes.verifyLogin);
 app.post("/changepassword", userRoutes.changePassword);
+
+
 
 app.post("/getdataset", getDataFunction.getDataSet);
 app.post("/getdataset2", getDataFunction.getDataSet2);

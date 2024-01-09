@@ -71,7 +71,46 @@ const searchManagerData = (req, res) => {
     }
   });
 };
+const searchTeam = (req, res) => {
+  jwt.verify(req.body.token, secretKey, (err) => {
+    if (err) {
+      console.error("Invalid token:");
+      res.status(200).json(false, "Invalid token");
+    } else {
+      pool.getConnection((connectionError, connection) => {
+        if (connectionError) {
+          console.error(connectionError);
+          res
+            .status(500)
+            .json({ error: "Error while connecting to the database." });
+        } else {
+          const search = req.body.search;
+          const query = `
+          SELECT
+    TEAM.ID,
+    TEAM.TEAM_NAME,
+    GROUP_CONCAT(CONCAT(EMPLOYEE.EMP_FIRSTNAME, ' ', EMPLOYEE.EMP_LASTNAME) ORDER BY EMPLOYEE.EMP_FIRSTNAME, EMPLOYEE.EMP_LASTNAME SEPARATOR ', ') AS NAME
+FROM TEAM
+JOIN EMPLOYEE ON EMPLOYEE.DIVISION_ID = TEAM.ID
+WHERE EMPLOYEE.ROLE_ID != 3 AND (TEAM.ID LIKE CONCAT('%',?, '%') OR TEAM.TEAM_NAME LIKE CONCAT('%',?, '%'))
+GROUP BY TEAM.ID, TEAM.TEAM_NAME
+ORDER BY TEAM.ID;
 
+        `;
+          connection.query(query, [search, search], (error, result) => {
+            connection.release(); // Release the connection back to the pool
+            if (error) {
+              console.log(error);
+              res.status(400).json("Error while querying data.");
+            } else {
+              res.status(200).json(result);
+            }
+          });
+        }
+      });
+    }
+  });
+};
 const searchUser = (req, res) => {
   jwt.verify(req.body.token, secretKey, (err) => {
     if (err) {
@@ -189,6 +228,107 @@ const deleteUser = (req, res) => {
     }
   });
 };
+const deleteTeam = (req, res) => {
+  jwt.verify(req.body.token, secretKey, (err) => {
+    if (err) {
+      console.error("Invalid token:", err);
+      res.status(401).json({ success: false, message: "Invalid token" });
+    } else {
+      pool.getConnection((connectionError, connection) => {
+        if (connectionError) {
+          console.error("Error connecting to the database:", connectionError);
+          res.status(500).json({ error: "Error connecting to the database." });
+        } else {
+          const teamID = req.body.teamID;
+          console.log(teamID);
+          const query = `DELETE FROM TEAM WHERE ID = ?`;
+
+          connection.query(query, [teamID], (error, result) => {
+            connection.release(); // Release the connection back to the pool
+            if (error) {
+              console.error("Error while deleting data:", error);
+              res.status(400).json({ error: "Error while deleting data." });
+            } else {
+              const data = result;
+              res.status(200).json(data);
+            }
+          });
+        }
+      });
+    }
+  });
+};
+
+const editTeam = (req, res) => {
+  jwt.verify(req.body.token, secretKey, (err) => {
+    if (err) {
+      console.error("Invalid token:", err);
+      res.status(401).json({ success: false, message: "Invalid token" });
+    } else {
+      pool.getConnection((connectionError, connection) => {
+        if (connectionError) {
+          console.error("Error connecting to the database:", connectionError);
+          res.status(500).json({ error: "Error connecting to the database." });
+        } else {
+          const teamID = req.body.teamID;
+          const newTeamName = req.body.newTeamName;
+          console.log(teamID);
+          const query = `UPDATE TEAM SET TEAM_NAME = ?  WHERE ID = ?`;
+
+          connection.query(query, [newTeamName, teamID], (error, result) => {
+            connection.release(); // Release the connection back to the pool
+            if (error) {
+              console.error("Error while deleting data:", error);
+              res.status(400).json({ error: "Error while deleting data." });
+            } else {
+              const data = result;
+              res.status(200).json(data);
+            }
+          });
+        }
+      });
+    }
+  });
+};
+const newTeam = (req, res) => {
+  jwt.verify(req.body.token, secretKey, (err) => {
+    if (err) {
+      console.error("Invalid token:", err);
+      res.status(401).json({ success: false, message: "Invalid token" });
+    } else {
+      pool.getConnection((connectionError, connection) => {
+        if (connectionError) {
+          console.error("Error connecting to the database:", connectionError);
+          res.status(500).json({ error: "Error connecting to the database." });
+        } else {
+          const newTeamId = req.body.newTeamId;
+          const newTeamName = req.body.newTeamName;
+          console.log(newTeamId);
+          const query = `SELECT ID FROM TEAM  WHERE ID = ?`;
+
+          connection.query(query, [newTeamId], (error, result) => {
+            console.log(result);
+            if (result.length === 0) {
+              const query = `INSERT INTO TEAM (ID,TEAM_NAME) VALUES (?,?);`;
+              connection.query(query, [newTeamId,newTeamName], (error, result) => {
+                connection.release(); 
+                if (error) {
+                  console.error("Error while deleting data:", error);
+                  res.status(400).json({ error: "Error while deleting data." });
+                } else {
+                  const data = result;
+                  res.status(200).json(data);
+                }
+              });
+            }else{
+              res.status(409).json({ error: "Team ID is used." });
+            }
+          });
+        }
+      });
+    }
+  });
+};
 const getNoAgentData = (req, res) => {
   jwt.verify(req.body.token, secretKey, (err) => {
     if (err) {
@@ -239,5 +379,9 @@ module.exports = {
   searchUser,
   deleteAgent,
   deleteUser,
-  getNoAgentData
+  getNoAgentData,
+  searchTeam,
+  deleteTeam,
+  editTeam,
+  newTeam,
 };
