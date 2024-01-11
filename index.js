@@ -77,7 +77,7 @@ app.post("/getagent", getDataFunction.getAgent);
 app.post("/getsupervisor", getDataFunction.getSupervisor);
 app.post("/getpointreport", getDataFunction.getPointReport);
 app.post("/searchfromid", getDataFunction.searchFromId);
-app.post("/getsummarypointreport", getDataFunction.getSummaryPointReport);
+app.post("/getsummarypointreport", getDataFunction.getSummaryPonintReport);
 app.post("/getdatafotsearchgharp", getDataFunction.getDataForSearchGharp);
 app.post("/getqueusname", getDataFunction.getQueusName);
 app.post("/newqueus", getDataFunction.newQueus);

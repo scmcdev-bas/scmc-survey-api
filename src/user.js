@@ -194,7 +194,7 @@ const addUser = (req, res) => {
               } else {
                 if (results1.length === 0) {
                   const query3 =
-                    "INSERT INTO USER_PASSWORD (USERNAME, ROLE, PASSWORD, INSERT_DATE) VALUES (?, ?, ?, ?)";
+                    "INSERT INTO USER_PASSWORD (USERNAME, ROLE, PASSWORD, INSERT_DATE,NAME) VALUES (?, ?, ?, ?,?)";
                   connection.query(
                     query3,
                     [
@@ -202,6 +202,7 @@ const addUser = (req, res) => {
                       data.role,
                       Buffer.from(data.password).toString("base64"),
                       currentDate,
+                      data.userFullname
                     ],
                     (insertError, insertResults) => {
                       connection.release(); // Release the connection back to the pool
