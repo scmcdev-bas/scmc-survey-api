@@ -23,7 +23,7 @@ const calculate = (result) => {
       item.valuepercentage = (item.value * 100) / scorelength;
     }
   }
-
+  
   return exportdata;
 };
 
@@ -42,7 +42,7 @@ const getDataSetAdmin = (req, res) => {
         }
 
         try {
-          const currentDate = moment().format("YYYY-MM-DD HH:mm:ss");
+          const currentDate = moment().format("YYYY-MM-DD");
 
           const query = `SELECT IVR_SURVEY_TRANS.SURVEY_TOPIC AS name, 
           SUM(CASE WHEN IVR_SURVEY_TRANS.Score = 5 THEN 1 ELSE 0 END) AS Score5, 
@@ -61,6 +61,7 @@ const getDataSetAdmin = (req, res) => {
             query,
             [currentDate, currentDate],
             (error, result) => {
+              console.log('result',result)
               if (error) {
                 console.error(error);
                 res.status(400).json({ error: "Error while querying data." });
@@ -244,7 +245,7 @@ const getDataSetPercentage = (req, res) => {
 
           if (decoded.userRole === "agent") {
             query = `
-            SELECT IVR_SURVEY_TRANS.SURVEY_TOPIC AS name, 
+            SELECT
             COUNT(IVR_SURVEY_TRANS.Score) AS scorelength,
             COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 5 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 5 THEN 1 ELSE NULL END) AS Score5, 
             COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 4 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 4 THEN 1 ELSE NULL END) AS Score4, 
@@ -259,7 +260,7 @@ const getDataSetPercentage = (req, res) => {
             AND EMPLOYEE.DIVISION_ID = ? 
             AND SURVEY_DATETIME >= ? 
             AND SURVEY_DATETIME <= DATE_ADD(?, INTERVAL 1 DAY) 
-            GROUP BY SURVEY_TOPIC;`;
+            `;
 
             queryParams = [
               decoded.userID,
@@ -269,7 +270,7 @@ const getDataSetPercentage = (req, res) => {
             ];
           } else if (decoded.userRole === "supervisor") {
             query = `
-            SELECT IVR_SURVEY_TRANS.SURVEY_TOPIC AS name, 
+            SELECT 
             COUNT(IVR_SURVEY_TRANS.Score) AS scorelength,
             COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 5 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 5 THEN 1 ELSE NULL END) AS Score5, 
             COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 4 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 4 THEN 1 ELSE NULL END) AS Score4, 
@@ -283,12 +284,12 @@ const getDataSetPercentage = (req, res) => {
             AND EMPLOYEE.DIVISION_ID = ? 
             AND SURVEY_DATETIME >= ? 
             AND SURVEY_DATETIME <= DATE_ADD(?, INTERVAL 1 DAY) 
-            GROUP BY SURVEY_TOPIC;`;
+            `;
 
             queryParams = [decoded.DIVISION_ID, currentDate, currentDate];
           } else if (decoded.userRole === "manager") {
             query = `
-            SELECT IVR_SURVEY_TRANS.SURVEY_TOPIC AS name, 
+            SELECT
             COUNT(IVR_SURVEY_TRANS.Score) AS scorelength,
             COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 5 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 5 THEN 1 ELSE NULL END) AS Score5, 
             COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 4 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 4 THEN 1 ELSE NULL END) AS Score4, 
@@ -301,7 +302,7 @@ const getDataSetPercentage = (req, res) => {
             WHERE SURVEY_TOPIC <> '' 
             AND SURVEY_DATETIME >= ? 
             AND SURVEY_DATETIME <= DATE_ADD(?, INTERVAL 1 DAY) 
-            GROUP BY SURVEY_TOPIC;`;
+            ;`;
 
             queryParams = [currentDate, currentDate];
           }
@@ -410,6 +411,10 @@ const getAgent = (req, res) => {
 
 const getSupervisor = (req, res) => {
   jwt.verify(req.body.token, secretKey, (err, decoded) => {
+    if (decoded.userRole === "agent") {
+      res.status(200).json([]);
+      return;
+    }
     if (err) {
       console.error("Invalid token:");
       res.status(200).json(false, "Invalid token");
@@ -455,14 +460,103 @@ const getSupervisor = (req, res) => {
             console.log(error);
             res.status(500).json("Error while connecting to the database");
           }
-        } else if (decoded.userRole === "agent") {
-          res.status(200).json([]);
         }
       });
     }
   });
 };
+const deleteQueus = (req, res) => {
+  jwt.verify(req.body.token, secretKey, (err) => {
+    if (err) {
+      console.error("Invalid token:", err);
+      res.status(401).json({ success: false, message: "Invalid token" });
+    } else {
+      pool.getConnection((connectionError, connection) => {
+        if (connectionError) {
+          console.error("Error connecting to the database:", connectionError);
+          res.status(500).json({ error: "Error connecting to the database." });
+        } else {
+          const queusId = req.body.queusId;
+          const query = `DELETE FROM QUEUS_NAME WHERE QUEUS_ID = ?`;
 
+          connection.query(query, [queusId], (error, result) => {
+            connection.release(); // Release the connection back to the pool
+            if (error) {
+              console.error("Error while deleting data:", error);
+              res.status(400).json({ error: "Error while deleting data." });
+            } else {
+              const data = result;
+              res.status(200).json(data);
+            }
+          });
+        }
+      });
+    }
+  });
+};
+const getQueusName = (req, res) => {
+  jwt.verify(req.body.token, secretKey, (err, decoded) => {
+    if (err) {
+      console.error("Invalid token:");
+      res.status(200).json(false, "Invalid token");
+    } else {
+      pool.getConnection((err, connection) => {
+        if (err) {
+          console.error("Error connecting to database:", err);
+          res.status(500).json("Error connecting to database");
+          return;
+        }
+        try {
+          const query = "SELECT * FROM QUEUS_NAME";
+          connection.query(query, (error, result) => {
+            if (error) {
+              console.log(error);
+              res.status(400).json("Error while querying data.");
+            } else {
+              res.status(200).json(result);
+            }
+            connection.release(); // Release the connection back to the pool
+          });
+        } catch (error) {
+          console.log(error);
+          res.status(500).json("Error while connecting to the database");
+        }
+      });
+    }
+  });
+};
+const newQueus = (req, res) => {
+  jwt.verify(req.body.token, secretKey, (err, decoded) => {
+    if (err) {
+      console.error("Invalid token:");
+      res.status(200).json(false, "Invalid token");
+    } else {
+      const questionName = req.body.questionName
+      pool.getConnection((err, connection) => {
+        if (err) {
+          console.error("Error connecting to database:", err);
+          res.status(500).json("Error connecting to database");
+          return;
+        }
+        try {
+          const query = "INSERT INTO QUEUS_NAME (QUEUS_TITLE) VALUES (?);";
+          connection.query(query, [questionName], (error, result) => {
+            if (error) {
+              console.log(error);
+              res.status(400).json("Error while querying data.");
+            } else {
+              res.status(200).json("Insert data succesful");
+            }
+            connection.release(); // Release the connection back to the pool
+          });
+        } catch (error) {
+          console.log(error);
+          res.status(500).json("Error while connecting to the database");
+        }
+      });
+    }
+  });
+};
 const getPointReport = (req, res) => {
   jwt.verify(req.body.token, secretKey, (err, decoded) => {
     if (err) {
@@ -489,7 +583,7 @@ const getPointReport = (req, res) => {
           res.status(500).json({ error: "Error getting connection from pool" });
         } else if (decoded.userRole === "manager") {
           const query = `
-  SELECT DISTINCT
+  SELECT 
     DATE_FORMAT(IVR_SURVEY_TRANS.SURVEY_DATETIME, '%Y-%m-%d') AS Date,
     TIME(IVR_SURVEY_TRANS.SURVEY_DATETIME) AS Time,
     IVR_SURVEY_TRANS.AGENT_ID,
@@ -544,7 +638,7 @@ const getPointReport = (req, res) => {
           );
         } else if (decoded.userRole === "supervisor") {
           const query = `
-  SELECT DISTINCT
+  SELECT 
     DATE_FORMAT(IVR_SURVEY_TRANS.SURVEY_DATETIME, '%Y-%m-%d') AS Date,
     TIME(IVR_SURVEY_TRANS.SURVEY_DATETIME) AS Time,
     IVR_SURVEY_TRANS.AGENT_ID,
@@ -601,7 +695,7 @@ const getPointReport = (req, res) => {
           );
         } else if (decoded.userRole === "agent") {
           const query = `
-  SELECT DISTINCT
+  SELECT 
     DATE_FORMAT(IVR_SURVEY_TRANS.SURVEY_DATETIME, '%Y-%m-%d') AS Date,
     TIME(IVR_SURVEY_TRANS.SURVEY_DATETIME) AS Time,
     IVR_SURVEY_TRANS.AGENT_ID,
@@ -720,10 +814,11 @@ const getSummaryPointReport = (req, res) => {
         if (userRole === "supervisor") {
           query = `          SELECT 
             EMPLOYEE.EMP_FIRSTNAME, 
-            SUM(CASE WHEN IVR_SURVEY_TRANS.Score <> '98' THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 <> '98' THEN 1 ELSE 0 END) AS sumscore, 
+            EMPLOYEE.EMP_LASTNAME, 
+            SUM(CASE WHEN IVR_SURVEY_TRANS.Score <> '98' THEN 1 ELSE 0 END)  AS sumscore, 
             AVG(CASE WHEN IVR_SURVEY_TRANS.Score <> '98' THEN CAST(IVR_SURVEY_TRANS.Score AS DECIMAL) ELSE NULL END) AS avgscore1, 
             AVG(CASE WHEN IVR_SURVEY_TRANS.Score_2 <> '98' THEN CAST(IVR_SURVEY_TRANS.Score_2 AS DECIMAL) ELSE NULL END) AS avgscore2, 
-            (AVG(CASE WHEN IVR_SURVEY_TRANS.Score <> '98' THEN CAST(IVR_SURVEY_TRANS.Score AS DECIMAL) ELSE NULL END) + AVG(CASE WHEN IVR_SURVEY_TRANS.Score_2 <> '98' THEN CAST(IVR_SURVEY_TRANS.Score_2 AS DECIMAL) ELSE NULL END)) / 2 AS avgscore,
+            AVG(CASE WHEN IVR_SURVEY_TRANS.Score <> '98' THEN CAST(IVR_SURVEY_TRANS.Score AS DECIMAL) ELSE NULL END) AS avgscore,
             COUNT(CASE WHEN IVR_SURVEY_TRANS.Score <> '98' THEN IVR_SURVEY_TRANS.Score END) AS scorelength, 
             COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = '98' THEN 1 ELSE NULL END) AS nodata, 
             SUM(CASE WHEN IVR_SURVEY_TRANS.Score = '5' THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = '5' THEN 1 ELSE 0 END) AS Score5, 
@@ -741,7 +836,7 @@ const getSummaryPointReport = (req, res) => {
             AND EMPLOYEE.EMP_FIRSTNAME LIKE ? 
             AND IVR_SURVEY_TRANS.SURVEY_TOPIC LIKE ? 
           GROUP BY 
-            EMPLOYEE.EMP_FIRSTNAME 
+            EMPLOYEE.EMP_FIRSTNAME, EMPLOYEE.EMP_LASTNAME 
           ORDER BY 
             EMPLOYEE.EMP_FIRSTNAME;
           `;
@@ -757,10 +852,10 @@ const getSummaryPointReport = (req, res) => {
           query = `
           SELECT 
           EMPLOYEE.EMP_FIRSTNAME, 
-          SUM(CASE WHEN IVR_SURVEY_TRANS.Score <> '98' THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 <> '98' THEN 1 ELSE 0 END) AS sumscore, 
+          SUM(CASE WHEN IVR_SURVEY_TRANS.Score <> '98' THEN 1 ELSE 0 END)  AS sumscore, 
           AVG(CASE WHEN IVR_SURVEY_TRANS.Score <> '98' THEN CAST(IVR_SURVEY_TRANS.Score AS DECIMAL) ELSE NULL END) AS avgscore1, 
           AVG(CASE WHEN IVR_SURVEY_TRANS.Score_2 <> '98' THEN CAST(IVR_SURVEY_TRANS.Score_2 AS DECIMAL) ELSE NULL END) AS avgscore2, 
-          (AVG(CASE WHEN IVR_SURVEY_TRANS.Score <> '98' THEN CAST(IVR_SURVEY_TRANS.Score AS DECIMAL) ELSE NULL END) + AVG(CASE WHEN IVR_SURVEY_TRANS.Score_2 <> '98' THEN CAST(IVR_SURVEY_TRANS.Score_2 AS DECIMAL) ELSE NULL END)) / 2 AS avgscore,
+          (AVG(CASE WHEN IVR_SURVEY_TRANS.Score <> '98' THEN CAST(IVR_SURVEY_TRANS.Score AS DECIMAL) ELSE NULL END) AS avgscore,
           COUNT(CASE WHEN IVR_SURVEY_TRANS.Score <> '98' THEN IVR_SURVEY_TRANS.Score END) AS scorelength, 
           COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = '98' THEN 1 ELSE NULL END) AS nodata, 
           SUM(CASE WHEN IVR_SURVEY_TRANS.Score = '5' THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = '5' THEN 1 ELSE 0 END) AS Score5, 
@@ -778,7 +873,7 @@ const getSummaryPointReport = (req, res) => {
           AND EMPLOYEE.EMP_FIRSTNAME LIKE ?
           AND IVR_SURVEY_TRANS.SURVEY_TOPIC LIKE ?
       GROUP BY 
-          EMPLOYEE.EMP_FIRSTNAME 
+      EMPLOYEE.EMP_FIRSTNAME, EMPLOYEE.EMP_LASTNAME 
       ORDER BY 
           EMPLOYEE.EMP_FIRSTNAME;
 `;
@@ -794,10 +889,10 @@ const getSummaryPointReport = (req, res) => {
           query = `
           SELECT 
           EMPLOYEE.EMP_FIRSTNAME, 
-          SUM(CASE WHEN IVR_SURVEY_TRANS.Score <> '98' THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 <> '98' THEN 1 ELSE 0 END) AS sumscore, 
+          SUM(CASE WHEN IVR_SURVEY_TRANS.Score <> '98' THEN 1 ELSE 0 END)  AS sumscore, 
           AVG(CASE WHEN IVR_SURVEY_TRANS.Score <> '98' THEN CAST(IVR_SURVEY_TRANS.Score AS DECIMAL) ELSE NULL END) AS avgscore1, 
           AVG(CASE WHEN IVR_SURVEY_TRANS.Score_2 <> '98' THEN CAST(IVR_SURVEY_TRANS.Score_2 AS DECIMAL) ELSE NULL END) AS avgscore2, 
-          (AVG(CASE WHEN IVR_SURVEY_TRANS.Score <> '98' THEN CAST(IVR_SURVEY_TRANS.Score AS DECIMAL) ELSE NULL END) + AVG(CASE WHEN IVR_SURVEY_TRANS.Score_2 <> '98' THEN CAST(IVR_SURVEY_TRANS.Score_2 AS DECIMAL) ELSE NULL END)) / 2 AS avgscore,
+          AVG(CASE WHEN IVR_SURVEY_TRANS.Score <> '98' THEN CAST(IVR_SURVEY_TRANS.Score AS DECIMAL) ELSE NULL END) AS avgscore,
           COUNT(CASE WHEN IVR_SURVEY_TRANS.Score <> '98' THEN IVR_SURVEY_TRANS.Score END) AS scorelength, 
           COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = '98' THEN 1 ELSE NULL END) AS nodata, 
           SUM(CASE WHEN IVR_SURVEY_TRANS.Score = '5' THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = '5' THEN 1 ELSE 0 END) AS Score5, 
@@ -816,7 +911,7 @@ const getSummaryPointReport = (req, res) => {
           AND IVR_SURVEY_TRANS.SURVEY_TOPIC LIKE ?
           AND EMPLOYEE.EMP_ID = ?
       GROUP BY 
-          EMPLOYEE.EMP_FIRSTNAME 
+          EMPLOYEE.EMP_FIRSTNAME, EMPLOYEE.EMP_LASTNAME 
       ORDER BY 
           EMPLOYEE.EMP_FIRSTNAME;
 `;
@@ -1081,4 +1176,7 @@ module.exports = {
   getDataForSearchGharp,
   getDataForSearchPercentage,
   getDataSetAdmin,
+  getQueusName,
+  newQueus,
+  deleteQueus
 };

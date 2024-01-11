@@ -29,7 +29,8 @@ const {
   searchTeam,
   deleteTeam,
   editTeam,
-  newTeam
+  newTeam,
+  editAgent
 } = require("./src/search");
 const userRoutes = require("./src/user");
 const getDataFunction = require("./src/getdata");
@@ -53,6 +54,8 @@ app.post("/searchTeam", searchTeam);
 app.post("/deleteteam", deleteTeam);
 app.post("/editteam", editTeam);
 app.post("/newteam", newTeam);
+app.post("/editagent",editAgent)
+
 
 app.post("/login", userRoutes.login);
 app.post("/adduser", userRoutes.addUser);
@@ -76,6 +79,11 @@ app.post("/getpointreport", getDataFunction.getPointReport);
 app.post("/searchfromid", getDataFunction.searchFromId);
 app.post("/getsummarypointreport", getDataFunction.getSummaryPointReport);
 app.post("/getdatafotsearchgharp", getDataFunction.getDataForSearchGharp);
+app.post("/getqueusname", getDataFunction.getQueusName);
+app.post("/newqueus", getDataFunction.newQueus);
+app.post("/deletequeus",getDataFunction.deleteQueus)
+app.post("/getdatasetadmin",getDataFunction.getDataSetAdmin)
+
 app.post(
   "/getdataforsearchpercentage",
   getDataFunction.getDataForSearchPercentage

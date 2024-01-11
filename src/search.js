@@ -15,7 +15,7 @@ const searchAgentData = (req, res) => {
             .json({ error: "Error while connecting to the database." });
         } else {
           const agentname = req.body.search;
-          const query = `SELECT EMPLOYEE.EMP_ID AS agentID, EMPLOYEE.EMP_FIRSTNAME as AGENT_NAME, DIVISION.DIVISION_NAME , EMPLOYEE2.EMP_FIRSTNAME  as SUPERVISOR_NAME FROM EMPLOYEE JOIN DIVISION ON EMPLOYEE.DIVISION_ID = DIVISION.DIVISION_ID JOIN EMPLOYEE AS EMPLOYEE2 ON EMPLOYEE.DIVISION_ID = EMPLOYEE2.DIVISION_ID AND EMPLOYEE2.ROLE_ID = '2' WHERE EMPLOYEE.ROLE_ID = '3' AND EMPLOYEE.EMP_FIRSTNAME LIKE CONCAT('%', ?, '%')`;
+          const query = `SELECT EMPLOYEE.EMP_ID AS agentID, EMPLOYEE.EMP_FIRSTNAME as AGENT_NAME,EMPLOYEE.EMP_LASTNAME AS AGENT_LASTNAME, DIVISION.DIVISION_NAME ,DIVISION.DIVISION_ID, EMPLOYEE2.EMP_FIRSTNAME  as SUPERVISOR_NAME FROM EMPLOYEE JOIN DIVISION ON EMPLOYEE.DIVISION_ID = DIVISION.DIVISION_ID JOIN EMPLOYEE AS EMPLOYEE2 ON EMPLOYEE.DIVISION_ID = EMPLOYEE2.DIVISION_ID AND EMPLOYEE2.ROLE_ID = '2' WHERE EMPLOYEE.ROLE_ID = '3' AND EMPLOYEE.EMP_FIRSTNAME LIKE CONCAT('%', ?, '%')`;
 
           connection.query(query, [agentname], (error, result) => {
             connection.release(); // Release the connection back to the pool
@@ -50,6 +50,7 @@ const searchManagerData = (req, res) => {
           const query = `
           SELECT EMPLOYEE.EMP_ID AS agentID,
                  EMPLOYEE.EMP_FIRSTNAME AS AGENT_NAME,
+                 EMPLOYEE.EMP_LASTNAME,
                  DIVISION.DIVISION_ID,
                  DIVISION.DIVISION_NAME
           FROM EMPLOYEE
@@ -87,14 +88,18 @@ const searchTeam = (req, res) => {
           const search = req.body.search;
           const query = `
           SELECT
-    TEAM.ID,
-    TEAM.TEAM_NAME,
-    GROUP_CONCAT(CONCAT(EMPLOYEE.EMP_FIRSTNAME, ' ', EMPLOYEE.EMP_LASTNAME) ORDER BY EMPLOYEE.EMP_FIRSTNAME, EMPLOYEE.EMP_LASTNAME SEPARATOR ', ') AS NAME
-FROM TEAM
-JOIN EMPLOYEE ON EMPLOYEE.DIVISION_ID = TEAM.ID
-WHERE EMPLOYEE.ROLE_ID != 3 AND (TEAM.ID LIKE CONCAT('%',?, '%') OR TEAM.TEAM_NAME LIKE CONCAT('%',?, '%'))
-GROUP BY TEAM.ID, TEAM.TEAM_NAME
-ORDER BY TEAM.ID;
+    DIVISION.DIVISION_ID,
+    DIVISION.DIVISION_NAME,
+    IFNULL(
+        GROUP_CONCAT(CONCAT(EMPLOYEE.EMP_FIRSTNAME, ' ', EMPLOYEE.EMP_LASTNAME) ORDER BY EMPLOYEE.EMP_FIRSTNAME, EMPLOYEE.EMP_LASTNAME SEPARATOR ', '),
+        '-'
+    ) AS NAME
+FROM DIVISION
+LEFT JOIN EMPLOYEE ON EMPLOYEE.DIVISION_ID = DIVISION.DIVISION_ID AND EMPLOYEE.ROLE_ID != 3
+WHERE (DIVISION.DIVISION_ID LIKE CONCAT('%', ?, '%') OR DIVISION.DIVISION_NAME LIKE CONCAT('%', ?, '%'))
+GROUP BY DIVISION.DIVISION_ID, DIVISION.DIVISION_NAME
+ORDER BY DIVISION.DIVISION_ID;
+
 
         `;
           connection.query(query, [search, search], (error, result) => {
@@ -174,7 +179,6 @@ const deleteAgent = (req, res) => {
           const query = `DELETE FROM EMPLOYEE WHERE EMP_ID = ?`;
 
           connection.query(query, [AGENT_ID], (error, result) => {
-            connection.release(); // Release the connection back to the pool
             if (error) {
               console.error("Error while deleting data:", error);
               res.status(400).json({ error: "Error while deleting data." });
@@ -241,7 +245,7 @@ const deleteTeam = (req, res) => {
         } else {
           const teamID = req.body.teamID;
           console.log(teamID);
-          const query = `DELETE FROM TEAM WHERE ID = ?`;
+          const query = `DELETE FROM DIVISION WHERE DIVISION_ID = ?`;
 
           connection.query(query, [teamID], (error, result) => {
             connection.release(); // Release the connection back to the pool
@@ -273,9 +277,43 @@ const editTeam = (req, res) => {
           const teamID = req.body.teamID;
           const newTeamName = req.body.newTeamName;
           console.log(teamID);
-          const query = `UPDATE TEAM SET TEAM_NAME = ?  WHERE ID = ?`;
+          const query = `UPDATE DIVISION SET DIVISION_NAME = ?  WHERE DIVISION_ID = ?`;
 
           connection.query(query, [newTeamName, teamID], (error, result) => {
+            connection.release(); // Release the connection back to the pool
+            if (error) {
+              console.error("Error while deleting data:", error);
+              res.status(400).json({ error: "Error while deleting data." });
+            } else {
+              const data = result;
+              res.status(200).json(data);
+            }
+          });
+        }
+      });
+    }
+  });
+};
+
+const editAgent = (req, res) => {
+  jwt.verify(req.body.token, secretKey, (err) => {
+    if (err) {
+      console.error("Invalid token:", err);
+      res.status(401).json({ success: false, message: "Invalid token" });
+    } else {
+      pool.getConnection((connectionError, connection) => {
+        if (connectionError) {
+          console.error("Error connecting to the database:", connectionError);
+          res.status(500).json({ error: "Error connecting to the database." });
+        } else {
+          const newName = req.body.newName;
+          const newLastName = req.body.newLastName;
+          const newDiviosion = req.body.newDiviosion;
+          const agentID = req.body.agentID;
+
+          const query = `UPDATE EMPLOYEE SET EMP_FIRSTNAME = ?, EMP_LASTNAME = ?, DIVISION_ID = ? WHERE EMP_ID = ?;`;
+
+          connection.query(query, [newName,newLastName,newDiviosion, agentID], (error, result) => {
             connection.release(); // Release the connection back to the pool
             if (error) {
               console.error("Error while deleting data:", error);
@@ -304,24 +342,39 @@ const newTeam = (req, res) => {
           const newTeamId = req.body.newTeamId;
           const newTeamName = req.body.newTeamName;
           console.log(newTeamId);
-          const query = `SELECT ID FROM TEAM  WHERE ID = ?`;
 
-          connection.query(query, [newTeamId], (error, result) => {
+          const selectQuery = `SELECT DIVISION_ID FROM DIVISION  WHERE DIVISION_ID = ?`;
+
+          connection.query(selectQuery, [newTeamId], (error, result) => {
             console.log(result);
-            if (result.length === 0) {
-              const query = `INSERT INTO TEAM (ID,TEAM_NAME) VALUES (?,?);`;
-              connection.query(query, [newTeamId,newTeamName], (error, result) => {
-                connection.release(); 
-                if (error) {
-                  console.error("Error while deleting data:", error);
-                  res.status(400).json({ error: "Error while deleting data." });
-                } else {
-                  const data = result;
-                  res.status(200).json(data);
-                }
-              });
-            }else{
-              res.status(409).json({ error: "Team ID is used." });
+            if (error) {
+              console.error("Error while executing SELECT query:", error);
+              res
+                .status(500)
+                .json({ error: "Error while executing SELECT query." });
+            } else {
+              if (result.length === 0) {
+                const insertQuery = `INSERT INTO DIVISION (DIVISION_ID, DIVISION_NAME) VALUES (?, ?);`;
+                connection.query(
+                  insertQuery,
+                  [newTeamId, newTeamName],
+                  (error, result) => {
+                    connection.release();
+                    if (error) {
+                      console.error("Error while inserting data:", error);
+                      res
+                        .status(400)
+                        .json({ error: "Error while inserting data." });
+                    } else {
+                      const data = result;
+                      res.status(200).json(data);
+                    }
+                  }
+                );
+              } else {
+                connection.release();
+                res.status(409).json({ error: "Team ID is used." });
+              }
             }
           });
         }
@@ -329,6 +382,7 @@ const newTeam = (req, res) => {
     }
   });
 };
+
 const getNoAgentData = (req, res) => {
   jwt.verify(req.body.token, secretKey, (err) => {
     if (err) {
@@ -384,4 +438,5 @@ module.exports = {
   deleteTeam,
   editTeam,
   newTeam,
+  editAgent
 };

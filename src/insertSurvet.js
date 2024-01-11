@@ -1,11 +1,12 @@
 const jwt = require("jsonwebtoken");
-const pool = require("./db"); 
+const pool = require("./db");
 const moment = require("moment");
-const config = require('../config');
+const config = require("../config");
 
 const insertSurvey = async (req, res, next) => {
   const apikey = req.headers["api_key"];
-  console.log(req.headers)
+  console.log(req.headers);
+
   try {
     if (!apikey) {
       return res.status(401).json({ message: "API key is not entered" });
@@ -22,49 +23,51 @@ const insertSurvey = async (req, res, next) => {
       }
 
       try {
-        const data = req.body; 
-        console.log('data',data)
-        const query = `INSERT INTO IVR_SURVEY_TRANS
-          (SURVEY_DATETIME, TRANS_ID, ROUTE_POINT, AGENT_ID, PLACE, LAST_MENU,
-            MSISDN, LANGUAGE, SCORE, SCORE_2, INSERT_DATE, SURVEY_TOPIC, NO_MATCH_SCORE,RESERVE_1,RESERVE_2,RESERVE_3,RESERVE_4,RESERVE_5,CALL_TYPE)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`;
+        const data = req.body;
+        console.log("data", data);
 
-        connection.query(
-          query,
-          [
-            data.SURVEY_DATETIME.toString(),
-            data.TRANS_ID.toString(),
-            data.ROUTE_POINT.toString(),
-            data.AGENT_ID.toString(),
-            data.PLACE.toString(),
-            data.LAST_MENU.toString(),
-            data.MSISDN.toString(),
-            data.LANGUAGE.toString(),
-            data.SCORE.toString(),
-            data.SCORE_2.toString(),
-            moment().format("YYYY-MM-DD HH:mm:ss.SSS"),
-            data.SURVEY_TOPIC.toString(),
-            data.NO_MATCH_SCORE.toString(),
-            data.RESERVE_1.toString(),
-            data.RESERVE_2.toString(),
-            data.RESERVE_3.toString(),
-            data.RESERVE_4.toString(),
-            data.RESERVE_5.toString(),
-            data.CALL_TYPE.toString()
-          ],
-          (error, result) => {
-            if (error) {
-              console.error(error);
-              res.status(400).json({ error: "Error while querying data." });
-            } else {
-              res.status(200).json(result);
-            }
-            connection.release(); 
+        const query = `
+          INSERT INTO IVR_SURVEY_TRANS
+          (SURVEY_DATETIME, TRANS_ID, ROUTE_POINT, AGENT_ID, PLACE, LAST_MENU,
+            MSISDN, LANGUAGE, SCORE, SCORE_2, INSERT_DATE, SURVEY_TOPIC, NO_MATCH_SCORE, RESERVE_1, RESERVE_2, RESERVE_3, RESERVE_4, RESERVE_5, CALL_TYPE)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        `;
+
+        const values = [
+          moment(data.SURVEY_DATETIME, 'MM/DD/YYYY h:mm:ssa').format("YYYY-MM-DD HH:mm:ss.SSS"),
+          data.TRANS_ID,
+          data.ROUTE_POINT,
+          data.AGENT_ID,
+          data.PLACE,
+          data.LAST_MENU,
+          data.MSISDN,
+          data.LANGUAGE,
+          data.SCORE1,
+          data.SCORE_2,
+          moment().format("YYYY-MM-DD HH:mm:ss.SSS"),
+          data.SURVEY_TOPIC,
+          data.NO_MATCH_SCORE,
+          data.RESERVE_1,
+          data.RESERVE_2,
+          data.RESERVE_3,
+          data.RESERVE_4,
+          data.RESERVE_5,
+          data.CALL_TYPE,
+        ];
+
+        connection.query(query, values, (error, result) => {
+          if (error) {
+            console.error(error);
+            return res.status(400).json({ error: "Error while querying data." });
           }
-        );
+
+          res.status(200).json(result);
+        });
       } catch (error) {
         console.error(error);
         res.status(500).json({ error: "Error while processing the request." });
+      } finally {
+        connection.release();
       }
     });
   } catch (err) {
@@ -72,6 +75,8 @@ const insertSurvey = async (req, res, next) => {
     res.status(500).json({ message: "Internal Server Error" });
   }
 };
+
+
 
 module.exports = {
   insertSurvey,
