@@ -17,10 +17,17 @@ const login = (req, res) => {
       }
 
       const newPassword = Buffer.from(password).toString("base64");
-      const query = `SELECT USER_PASSWORD.USERNAME, USER_PASSWORD.PASSWORD, ROLE.ROLE_NAME, EMPLOYEE.DIVISION_ID, EMPLOYEE.EMP_ID FROM USER_PASSWORD JOIN EMPLOYEE ON EMPLOYEE.EMP_ID = USER_PASSWORD.EMP_ID JOIN ROLE ON EMPLOYEE.ROLE_ID = ROLE.ROLE_ID WHERE USER_PASSWORD.USERNAME = ?`;
+      const query = `SELECT USER_PASSWORD.USERNAME
+      , USER_PASSWORD.PASSWORD, 
+      ROLE.ROLE_NAME
+        FROM USER_PASSWORD 
+        JOIN ROLE ON USER_PASSWORD.ROLE = ROLE.ROLE_ID 
+        WHERE USER_PASSWORD.USERNAME = ?`;
 
       connection.query(query, [username], (error, results, fields) => {
         connection.release();
+        console.log(results)
+
         if (error) {
           console.error("Error while querying data: ", error);
           res.status(500).json({ error: "Error while querying data." });
@@ -41,7 +48,6 @@ const login = (req, res) => {
                   userRole: results[0].ROLE_NAME,
                   userPermission: userPermission,
                   userID: results[0].EMP_ID,
-                  DIVISION_ID: results[0].DIVISION_ID,
                 },
                 secretKey
               );
@@ -160,10 +166,10 @@ const changePassword = (req, res) => {
 const addUser = (req, res) => {
   jwt.verify(req.body.token, secretKey, (err, decoded) => {
     if (err) {
-      console.error("Invalid token:", token);
-      res.status(200).json(false, "Invalid token");
+      console.log(err)
+      res.status(200).json({ success: false, error: "Invalid token" });
     } else {
-      const data = req.body.userData;
+      const data = req.body;
 
       try {
         // Get the current date
@@ -181,63 +187,34 @@ const addUser = (req, res) => {
             const query1 = "SELECT * FROM USER_PASSWORD WHERE USERNAME = ?";
             connection.query(query1, [data.username], (error1, results1) => {
               if (error1) {
+                console.log(error1)
+
                 connection.release();
                 res.status(500).json({ error: "Error while querying data." });
               } else {
-                // Check if the user already exists
                 if (results1.length === 0) {
-                  const query2 = "SELECT * FROM EMPLOYEE WHERE EMP_ID = ?";
+                  const query3 =
+                    "INSERT INTO USER_PASSWORD (USERNAME, ROLE, PASSWORD, INSERT_DATE) VALUES (?, ?, ?, ?)";
                   connection.query(
-                    query2,
-                    [data.agentID],
-                    (error2, results2) => {
-                      if (error2) {
-                        connection.release();
-                        res
-                          .status(500)
-                          .json({ error: "Error while querying data." });
+                    query3,
+                    [
+                      data.username,
+                      data.role,
+                      Buffer.from(data.password).toString("base64"),
+                      currentDate,
+                    ],
+                    (insertError, insertResults) => {
+                      connection.release(); // Release the connection back to the pool
+                      if (insertError) {
+                        console.error(insertError);
+                        res.status(400).json({
+                          message: "Error while inserting data.",
+                        });
                       } else {
-                        // Check if the employee exists
-                        if (results2.length === 1) {
-                          const query3 =
-                            "INSERT INTO USER_PASSWORD (USERNAME, EMP_ID, PASSWORD, INSERT_DATE) VALUES (?, ?, ?, ?)";
-                          connection.query(
-                            query3,
-                            [
-                              data.username,
-                              data.agentID,
-                              Buffer.from(data.password).toString("base64"),
-                              currentDate,
-                            ],
-                            (insertError, insertResults) => {
-                              connection.release(); // Release the connection back to the pool
-                              if (insertError) {
-                                console.error(insertError);
-                                res.status(400).json({
-                                  message: "Error while inserting data.",
-                                });
-                              } else {
-                                res
-                                  .status(201)
-                                  .json({ message: "Success", success: true });
-                                const logMessage = `${new Date().toISOString()}: User data imported successfully with username ${
-                                  data.username
-                                }\n`;
-                                fs.writeFileSync(
-                                  "insert_User.log",
-                                  logMessage,
-                                  { flag: "a+" }
-                                );
-                              }
-                            }
-                          );
-                        } else {
-                          connection.release();
-                          res
-                            .status(201)
-                            .json({ message: "User ID not found." });
+                        res
+                          .status(201)
+                          .json({ message: "Success", success: 'true' });
                         }
-                      }
                     }
                   );
                 } else {
@@ -251,6 +228,7 @@ const addUser = (req, res) => {
           }
         });
       } catch (error) {
+        console.log(error)
         res.status(500).json({ error: "Error while querying data." });
       }
     }
@@ -313,5 +291,5 @@ module.exports = {
   verifyAdmin,
   verifyUser,
   verifyLogin,
-  changePassword
+  changePassword,
 };

@@ -132,12 +132,11 @@ const searchUser = (req, res) => {
           const userName = req.body.searchUsername;
           const userFullname = req.body.searchName;
           const userRole = req.body.searchRole;
-          const query = `SELECT USER_PASSWORD.INSERT_DATE, USER_PASSWORD.USERNAME, EMPLOYEE.EMP_FIRSTNAME, ROLE.ROLE_NAME 
+          const query = `SELECT USER_PASSWORD.INSERT_DATE, USER_PASSWORD.USERNAME, ROLE.ROLE_NAME ,NAME AS EMP_FIRSTNAME
                          FROM USER_PASSWORD 
-                         JOIN EMPLOYEE ON EMPLOYEE.EMP_ID = USER_PASSWORD.EMP_ID 
-                         JOIN ROLE ON ROLE.ROLE_ID = EMPLOYEE.ROLE_ID 
+                        JOIN ROLE ON ROLE.ROLE_ID = USER_PASSWORD.ROLE 
                          WHERE USER_PASSWORD.USERNAME LIKE CONCAT('%', ?, '%') 
-                         AND EMPLOYEE.EMP_FIRSTNAME LIKE CONCAT('%', ?, '%') 
+                         AND NAME LIKE CONCAT('%', ?, '%') 
                          AND ROLE.ROLE_ID LIKE CONCAT('%', ?, '%')`;
 
           connection.query(

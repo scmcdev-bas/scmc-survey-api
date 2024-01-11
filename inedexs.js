@@ -725,7 +725,7 @@ app.post("/searchagentdata", (req, res) => {
     });
   });
   
-  app.post("/getsummarypointreport", (req, res) => {
+  app.post("/", (req, res) => {
     jwt.verify(req.body.token, secretKey, (err, decoded) => {
       if (err) {
         console.error("Invalid token:");
