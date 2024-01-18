@@ -63,11 +63,12 @@ app.post("/verifyadmin", userRoutes.verifyAdmin);
 app.post("/verifyuser", userRoutes.verifyUser);
 app.post("/verifylogin", userRoutes.verifyLogin);
 app.post("/changepassword", userRoutes.changePassword);
+app.post("/edituserpermission", userRoutes.editPermission)
 
 
 
 app.post("/getdataset", getDataFunction.getDataSet);
-app.post("/getdataset2", getDataFunction.getDataSet2);
+// app.post("/getdataset2", getDataFunction.getDataSet2);
 app.post("/getdatasetpercentage", getDataFunction.getDataSetPercentage);
 app.post(
   "/getdatasetpercentageadmin",
@@ -77,12 +78,14 @@ app.post("/getagent", getDataFunction.getAgent);
 app.post("/getsupervisor", getDataFunction.getSupervisor);
 app.post("/getpointreport", getDataFunction.getPointReport);
 app.post("/searchfromid", getDataFunction.searchFromId);
-app.post("/getsummarypointreport", getDataFunction.getSummaryPonintReport);
+app.post("/getsummarypointreport", getDataFunction.getSummaryPointReport);
 app.post("/getdatafotsearchgharp", getDataFunction.getDataForSearchGharp);
 app.post("/getqueusname", getDataFunction.getQueusName);
 app.post("/newqueus", getDataFunction.newQueus);
 app.post("/deletequeus",getDataFunction.deleteQueus)
 app.post("/getdatasetadmin",getDataFunction.getDataSetAdmin)
+app.post("/getpermissionlist",getDataFunction.getPermissioingList)
+
 
 app.post(
   "/getdataforsearchpercentage",

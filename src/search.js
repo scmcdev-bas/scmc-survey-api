@@ -132,12 +132,28 @@ const searchUser = (req, res) => {
           const userName = req.body.searchUsername;
           const userFullname = req.body.searchName;
           const userRole = req.body.searchRole;
-          const query = `SELECT USER_PASSWORD.INSERT_DATE, USER_PASSWORD.USERNAME, ROLE.ROLE_NAME ,NAME AS EMP_FIRSTNAME
-                         FROM USER_PASSWORD 
-                        JOIN ROLE ON ROLE.ROLE_ID = USER_PASSWORD.ROLE 
-                         WHERE USER_PASSWORD.USERNAME LIKE CONCAT('%', ?, '%') 
-                         AND NAME LIKE CONCAT('%', ?, '%') 
-                         AND ROLE.ROLE_ID LIKE CONCAT('%', ?, '%')`;
+          const query = `
+            SELECT 
+              USER_PASSWORD.INSERT_DATE, 
+              USER_PASSWORD.USERNAME, 
+              ROLE.ROLE_NAME, 
+              NAME AS EMP_FIRSTNAME,
+              GROUP_CONCAT(USER_PERMISSION.USER_PERMISSION) AS PERMISSIONS
+            FROM 
+              USER_PASSWORD
+            JOIN 
+              ROLE ON ROLE.ROLE_ID = USER_PASSWORD.ROLE
+            LEFT JOIN 
+              USER_PERMISSION ON USER_PERMISSION.USER_ID = USER_PASSWORD.USER_ID
+            WHERE 
+              USER_PASSWORD.USERNAME LIKE CONCAT('%', ?, '%') 
+              AND NAME LIKE CONCAT('%', ?, '%') 
+              AND ROLE.ROLE_NAME LIKE CONCAT('%', ?, '%')
+            GROUP BY 
+              USER_PASSWORD.INSERT_DATE, 
+              USER_PASSWORD.USERNAME, 
+              ROLE.ROLE_NAME, 
+              EMP_FIRSTNAME`;
 
           connection.query(
             query,
@@ -163,6 +179,7 @@ const searchUser = (req, res) => {
     }
   });
 };
+
 const deleteAgent = (req, res) => {
   jwt.verify(req.body.token, secretKey, (err) => {
     if (err) {

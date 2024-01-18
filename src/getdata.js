@@ -86,8 +86,9 @@ const getDataSet = (req, res) => {
   jwt.verify(req.body.token, secretKey, (err, decoded) => {
     if (err) {
       console.error("Invalid token:");
-      res.status(200).json({ success: false, message: "Invalid token" });
+      res.status(401).json({ success: false, message: "Invalid token" });
     } else {
+      const username = decoded.userName;
       pool.getConnection((err, connection) => {
         if (err) {
           console.error("Error connecting to database: ", err);
@@ -98,33 +99,66 @@ const getDataSet = (req, res) => {
         const currentDate = moment().format("YYYY-MM-DD");
 
         try {
-          let query;
-          let queryParams;
+          // Fetch user permissions
+          const permissionQuery = `
+            SELECT USER_PERMISSION.USER_PERMISSION
+            FROM USER_PASSWORD
+            JOIN USER_PERMISSION ON USER_PASSWORD.USER_ID = USER_PERMISSION.USER_ID
+            WHERE USER_PASSWORD.USERNAME = ?;
+          `;
 
-          query = `SELECT IVR_SURVEY_TRANS.SURVEY_TOPIC AS name, 
-              SUM(CASE WHEN IVR_SURVEY_TRANS.Score = 5 THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 5 THEN 1 ELSE 0 END) AS Score5, 
-              SUM(CASE WHEN IVR_SURVEY_TRANS.Score = 4 THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 4 THEN 1 ELSE 0 END) AS Score4, 
-              SUM(CASE WHEN IVR_SURVEY_TRANS.Score = 3 THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 3 THEN 1 ELSE 0 END) AS Score3, 
-              SUM(CASE WHEN IVR_SURVEY_TRANS.Score = 2 THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 2 THEN 1 ELSE 0 END) AS Score2, 
-              SUM(CASE WHEN IVR_SURVEY_TRANS.Score = 1 THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 1 THEN 1 ELSE 0 END) AS Score1,
-              SUM(CASE WHEN IVR_SURVEY_TRANS.Score = 98 THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 98 THEN 1 ELSE 0 END) AS nodata
-              FROM IVR_SURVEY_TRANS 
-              WHERE SURVEY_TOPIC <> '' 
-              AND SURVEY_DATETIME >= ? 
-              AND SURVEY_DATETIME <= DATE_ADD(?, INTERVAL 1 DAY) 
-              GROUP BY SURVEY_TOPIC;`;
+          connection.query(
+            permissionQuery,
+            [username],
+            (error, permissionResult) => {
+              if (error) {
+                console.error(error);
+                res
+                  .status(400)
+                  .json({ error: "Error while querying permissions." });
+                connection.release(); // Release the connection back to the pool
+              } else {
+                const userPermissions = permissionResult.map(
+                  (row) => row.USER_PERMISSION
+                );
 
-          queryParams = [currentDate, currentDate];
+                let query;
+                let queryParams;
 
-          connection.query(query, queryParams, (error, result) => {
-            if (error) {
-              console.error(error);
-              res.status(400).json({ error: "Error while querying data." });
-            } else {
-              console.log(result);
-              res.status(200).json(result);
+                query = `SELECT IVR_SURVEY_TRANS.SURVEY_TOPIC AS name, 
+                SUM(CASE WHEN IVR_SURVEY_TRANS.Score = 5 THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 5 THEN 1 ELSE 0 END) AS Score5, 
+                SUM(CASE WHEN IVR_SURVEY_TRANS.Score = 4 THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 4 THEN 1 ELSE 0 END) AS Score4, 
+                SUM(CASE WHEN IVR_SURVEY_TRANS.Score = 3 THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 3 THEN 1 ELSE 0 END) AS Score3, 
+                SUM(CASE WHEN IVR_SURVEY_TRANS.Score = 2 THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 2 THEN 1 ELSE 0 END) AS Score2, 
+                SUM(CASE WHEN IVR_SURVEY_TRANS.Score = 1 THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 1 THEN 1 ELSE 0 END) AS Score1,
+                SUM(CASE WHEN IVR_SURVEY_TRANS.Score = 98 THEN 1 ELSE 0 END) + SUM(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 98 THEN 1 ELSE 0 END) AS nodata
+                FROM IVR_SURVEY_TRANS 
+                WHERE SURVEY_TOPIC <> '' 
+                AND SURVEY_DATETIME >= ? 
+                AND SURVEY_DATETIME <= DATE_ADD(?, INTERVAL 1 DAY)
+                ${
+                  userPermissions.length > 0
+                    ? `AND IVR_SURVEY_TRANS.SURVEY_TOPIC IN (?)`
+                    : ""
+                }
+                GROUP BY SURVEY_TOPIC;`;
+
+                queryParams = [currentDate, currentDate, userPermissions];
+
+                connection.query(query, queryParams, (error, result) => {
+                  if (error) {
+                    console.error(error);
+                    res
+                      .status(400)
+                      .json({ error: "Error while querying data." });
+                  } else {
+                    console.log(result);
+                    res.status(200).json(result);
+                  }
+                });
+              }
             }
-          });
+          );
         } catch (error) {
           console.error(error);
           res
@@ -190,8 +224,9 @@ const getDataSet2 = async (req, res) => {
 const getDataSetPercentage = (req, res) => {
   jwt.verify(req.body.token, secretKey, (err, decoded) => {
     if (err) {
-      res.status(200).json({ success: false, message: "Invalid token" });
+      res.status(401).json({ success: false, message: "Invalid token" });
     } else {
+      const username = decoded.userName;
       pool.getConnection((err, connection) => {
         if (err) {
           console.error("Error connecting to database:", err);
@@ -200,36 +235,69 @@ const getDataSetPercentage = (req, res) => {
         }
 
         try {
-          const currentDate = moment().format("YYYY-MM-DD");
+          // Fetch user permissions
+          const permissionQuery = `
+            SELECT USER_PERMISSION.USER_PERMISSION
+            FROM USER_PASSWORD
+            JOIN USER_PERMISSION ON USER_PASSWORD.USER_ID = USER_PERMISSION.USER_ID
+            WHERE USER_PASSWORD.USERNAME = ?;
+          `;
 
-          let query;
-          let queryParams;
+          connection.query(
+            permissionQuery,
+            [username],
+            (error, permissionResult) => {
+              if (error) {
+                console.error(error);
+                res
+                  .status(400)
+                  .json({ error: "Error while querying permissions." });
+                connection.release(); // Release the connection back to the pool
+              } else {
+                const userPermissions = permissionResult.map(
+                  (row) => row.USER_PERMISSION
+                );
 
-          query = `
-            SELECT
-            COUNT(IVR_SURVEY_TRANS.Score) AS scorelength,
-            COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 5 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 5 THEN 1 ELSE NULL END) AS Score5, 
-            COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 4 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 4 THEN 1 ELSE NULL END) AS Score4, 
-            COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 3 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 3 THEN 1 ELSE NULL END) AS Score3, 
-            COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 2 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 2 THEN 1 ELSE NULL END) AS Score2, 
-            COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 1 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 1 THEN 1 ELSE NULL END) AS Score1,
-            COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 98 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 98 THEN 1 ELSE NULL END) AS nodata
-            FROM IVR_SURVEY_TRANS 
-            WHERE SURVEY_TOPIC <> '' 
-            AND SURVEY_DATETIME >= ? 
-            AND SURVEY_DATETIME <= DATE_ADD(?, INTERVAL 1 DAY) 
-            ;`;
+                const currentDate = moment().format("YYYY-MM-DD");
 
-          queryParams = [currentDate, currentDate];
+                let query;
+                let queryParams;
 
-          connection.query(query, queryParams, (error, result) => {
-            if (error) {
-              console.error(error);
-              res.status(400).json({ error: "Error while querying data." });
-            } else {
-              res.status(200).json(calculate(result));
+                query = `
+                SELECT
+                  COUNT(IVR_SURVEY_TRANS.Score) AS scorelength,
+                  COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 5 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 5 THEN 1 ELSE NULL END) AS Score5, 
+                  COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 4 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 4 THEN 1 ELSE NULL END) AS Score4, 
+                  COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 3 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 3 THEN 1 ELSE NULL END) AS Score3, 
+                  COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 2 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 2 THEN 1 ELSE NULL END) AS Score2, 
+                  COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 1 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 1 THEN 1 ELSE NULL END) AS Score1,
+                  COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 98 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 98 THEN 1 ELSE NULL END) AS nodata
+                FROM IVR_SURVEY_TRANS 
+                WHERE SURVEY_TOPIC <> '' 
+                AND SURVEY_DATETIME >= ? 
+                AND SURVEY_DATETIME <= DATE_ADD(?, INTERVAL 1 DAY)
+                ${
+                  userPermissions.length > 0
+                    ? `AND IVR_SURVEY_TRANS.SURVEY_TOPIC IN (?)`
+                    : ""
+                }
+                ;`;
+
+                queryParams = [currentDate, currentDate, userPermissions];
+
+                connection.query(query, queryParams, (error, result) => {
+                  if (error) {
+                    console.error(error);
+                    res
+                      .status(400)
+                      .json({ error: "Error while querying data." });
+                  } else {
+                    res.status(200).json(calculate(result));
+                  }
+                });
+              }
             }
-          });
+          );
         } catch (error) {
           console.error(error);
           res
@@ -478,7 +546,12 @@ const getPointReport = (req, res) => {
     if (err) {
       console.error("Invalid token:", err);
       res.status(200).json({ success: false, message: "Invalid token" });
+      return;
     }
+
+    const username = decoded.userName;
+    console.log(username);
+
     const data = req.body;
     const value1 = req.body.value1;
     const value2 = req.body.value2;
@@ -492,37 +565,70 @@ const getPointReport = (req, res) => {
     const agent = req.body.agent;
     const startDate = req.body.startDateTime;
     const endDate = req.body.endDateTime;
-    console.log(decoded);
+
     pool.getConnection((err, connection) => {
       if (err) {
         console.error("Error getting connection from pool:", err);
         res.status(500).json({ error: "Error getting connection from pool" });
-      } else {
-        const query = `
-  SELECT 
-    DATE_FORMAT(IVR_SURVEY_TRANS.SURVEY_DATETIME, '%Y-%m-%d') AS Date,
-    TIME_FORMAT(IVR_SURVEY_TRANS.SURVEY_DATETIME, '%H:%i:%s') AS Time,
-    IVR_SURVEY_TRANS.AGENT_ID,
-    RESERVE_1 AS EMP_FIRSTNAME,
-    IVR_SURVEY_TRANS.SCORE,
-    IVR_SURVEY_TRANS.MSISDN,
-    IVR_SURVEY_TRANS.PLACE,
-    IVR_SURVEY_TRANS.ROUTE_POINT,
-    IVR_SURVEY_TRANS.SURVEY_TOPIC
-  FROM
-    IVR_SURVEY_TRANS
-  WHERE
-    IVR_SURVEY_TRANS.SURVEY_DATETIME BETWEEN ? AND ?
-    AND RESERVE_1 LIKE CONCAT('%', ?, '%')
-    AND IVR_SURVEY_TRANS.SURVEY_TOPIC LIKE CONCAT('%', ?, '%')
-    AND IVR_SURVEY_TRANS.MSISDN LIKE CONCAT('%', ?, '%')
-    AND IVR_SURVEY_TRANS.SCORE IN (?, ?, ?, ?, ?, ?)
-  ORDER BY
-    IVR_SURVEY_TRANS.SURVEY_DATETIME DESC;
+        return;
+      }
+
+      const permissionQuery = `
+        SELECT USER_PERMISSION.USER_PERMISSION
+        FROM USER_PASSWORD
+        JOIN USER_PERMISSION ON USER_PASSWORD.USER_ID = USER_PERMISSION.USER_ID
+        WHERE USER_PASSWORD.USERNAME = ?;
+      `;
+
+      connection.query(
+        permissionQuery,
+        [username],
+        (error, permissionResult) => {
+          connection.release(); // Release the connection back to the pool
+
+          if (error) {
+            console.error(error);
+            res.status(400).json("Error while querying data.");
+            return;
+          }
+
+          const userPermissions = permissionResult.map(
+            (row) => row.USER_PERMISSION
+          );
+
+          const topicConditions = userPermissions.map(
+            (permission) => `IVR_SURVEY_TRANS.SURVEY_TOPIC = ?`
+          );
+          const topicParams = [...userPermissions, topic];
+
+          const surveyQuery = `
+              SELECT 
+                DATE_FORMAT(IVR_SURVEY_TRANS.SURVEY_DATETIME, '%Y-%m-%d') AS Date,
+                TIME_FORMAT(IVR_SURVEY_TRANS.SURVEY_DATETIME, '%H:%i:%s') AS Time,
+                IVR_SURVEY_TRANS.AGENT_ID,
+                RESERVE_1 AS EMP_FIRSTNAME,
+                IVR_SURVEY_TRANS.SCORE,
+                IVR_SURVEY_TRANS.MSISDN,
+                IVR_SURVEY_TRANS.PLACE,
+                IVR_SURVEY_TRANS.ROUTE_POINT,
+                IVR_SURVEY_TRANS.SURVEY_TOPIC
+                FROM IVR_SURVEY_TRANS
+                WHERE
+                IVR_SURVEY_TRANS.SURVEY_DATETIME BETWEEN ? AND ?
+                AND RESERVE_1 LIKE CONCAT('%', ?, '%')
+                ${
+                  topic === ""
+                    ? ""
+                    : `AND (IVR_SURVEY_TRANS.SURVEY_TOPIC = ? OR ${topicConditions.join(
+                        " OR "
+                      )})`
+                }
+                  AND IVR_SURVEY_TRANS.MSISDN LIKE CONCAT('%', ?, '%')
+                AND IVR_SURVEY_TRANS.SCORE IN (?, ?, ?, ?, ?, ?)
+  ORDER BY IVR_SURVEY_TRANS.SURVEY_DATETIME DESC;
 `;
-        connection.query(
-          query,
-          [
+
+          const queryParams = [
             startDate,
             endDate,
             agent,
@@ -534,20 +640,19 @@ const getPointReport = (req, res) => {
             value4,
             value5,
             Noinput,
-          ],
-          (error, result) => {
-            connection.release(); // Release the connection back to the pool
+            ...topicParams,
+          ];
 
+          connection.query(surveyQuery, queryParams, (error, result) => {
             if (error) {
               console.log(error);
               res.status(400).json({ error: "Error while querying data." });
             } else {
-              let data = result;
-              res.status(200).json(data);
+              res.status(200).json(result);
             }
-          }
-        );
-      }
+          });
+        }
+      );
     });
   });
 };
@@ -600,56 +705,89 @@ const getSummaryPointReport = (req, res) => {
       }
 
       try {
-        const data = req.body;
-        console.log(data.reportTopic);
-        let query, queryParams;
+        const username = decoded.userName;
 
-        query = `
-  SELECT 
-    RESERVE_1 AS EMP_FIRSTNAME, 
-    SUM(CASE WHEN IVR_SURVEY_TRANS.Score <> '98' THEN 1 ELSE 0 END) AS sumscore, 
-    AVG(CASE WHEN IVR_SURVEY_TRANS.Score <> '98' THEN CAST(IVR_SURVEY_TRANS.Score AS DECIMAL) ELSE NULL END) AS avgscore, 
-    COUNT(CASE WHEN IVR_SURVEY_TRANS.Score <> '98' THEN IVR_SURVEY_TRANS.Score END) AS scorelength, 
-    COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = '98' THEN 1 ELSE NULL END) AS nodata, 
-    SUM(CASE WHEN IVR_SURVEY_TRANS.Score = '5' THEN 1 ELSE 0 END) AS Score5, 
-    SUM(CASE WHEN IVR_SURVEY_TRANS.Score = '4' THEN 1 ELSE 0 END) AS Score4, 
-    SUM(CASE WHEN IVR_SURVEY_TRANS.Score = '3' THEN 1 ELSE 0 END) AS Score3, 
-    SUM(CASE WHEN IVR_SURVEY_TRANS.Score = '2' THEN 1 ELSE 0 END) AS Score2, 
-    SUM(CASE WHEN IVR_SURVEY_TRANS.Score = '1' THEN 1 ELSE 0 END) AS Score1 
-  FROM 
-    IVR_SURVEY_TRANS 
-  WHERE 
-    IVR_SURVEY_TRANS.SURVEY_DATETIME BETWEEN ? AND ?
-    AND IVR_SURVEY_TRANS.SURVEY_TOPIC LIKE ?
-    AND RESERVE_1 LIKE ?
-    AND IVR_SURVEY_TRANS.Score <> '98'  -- Exclude rows where Score is '98'
-  GROUP BY 
-    RESERVE_1 
-  ORDER BY 
-    RESERVE_1;
-`;
+        // First Query: Retrieve user permissions
+        const permissionQuery = `
+          SELECT USER_PERMISSION.USER_PERMISSION
+          FROM USER_PASSWORD
+          JOIN USER_PERMISSION ON USER_PASSWORD.USER_ID = USER_PERMISSION.USER_ID
+          WHERE USER_PASSWORD.USERNAME = ?;
+        `;
 
-        console.log(data.agent);
-        queryParams = [
-          data.startDateTime,
-          data.endDateTime,
-          `%${data.reportTopic}%`,
-          `%${data.agent}%`,
-        ];
+        connection.query(
+          permissionQuery,
+          [username],
+          (error, permissionResult) => {
+            if (error) {
+              console.error("Error while querying permissions:", error);
+              connection.release();
+              return res
+                .status(400)
+                .json({ error: "Error while querying permissions." });
+            }
 
-        connection.query(query, queryParams, (error, result) => {
-          connection.release(); // Release the connection back to the pool
+            const userPermissions = permissionResult.map(
+              (row) => row.USER_PERMISSION
+            );
 
-          if (error) {
-            console.error("Error while querying data:", error);
-            return res
-              .status(400)
-              .json({ error: "Error while querying data." });
+            // Second Query: Use user permissions in the main data query
+            const data = req.body;
+            const query = `
+            SELECT 
+              RESERVE_1 AS EMP_FIRSTNAME, 
+              SUM(CASE WHEN IVR_SURVEY_TRANS.Score <> '98' THEN 1 ELSE 0 END) AS sumscore, 
+              AVG(CASE WHEN IVR_SURVEY_TRANS.Score <> '98' THEN CAST(IVR_SURVEY_TRANS.Score AS DECIMAL) ELSE NULL END) AS avgscore, 
+              COUNT(CASE WHEN IVR_SURVEY_TRANS.Score <> '98' THEN IVR_SURVEY_TRANS.Score END) AS scorelength, 
+              COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = '98' THEN 1 ELSE NULL END) AS nodata, 
+              SUM(CASE WHEN IVR_SURVEY_TRANS.Score = '5' THEN 1 ELSE 0 END) AS Score5, 
+              SUM(CASE WHEN IVR_SURVEY_TRANS.Score = '4' THEN 1 ELSE 0 END) AS Score4, 
+              SUM(CASE WHEN IVR_SURVEY_TRANS.Score = '3' THEN 1 ELSE 0 END) AS Score3, 
+              SUM(CASE WHEN IVR_SURVEY_TRANS.Score = '2' THEN 1 ELSE 0 END) AS Score2, 
+              SUM(CASE WHEN IVR_SURVEY_TRANS.Score = '1' THEN 1 ELSE 0 END) AS Score1 
+            FROM 
+              IVR_SURVEY_TRANS 
+            WHERE 
+              IVR_SURVEY_TRANS.SURVEY_DATETIME BETWEEN ? AND ?
+              AND IVR_SURVEY_TRANS.SURVEY_TOPIC LIKE ?
+              AND RESERVE_1 LIKE ?
+              AND IVR_SURVEY_TRANS.Score <> '98'
+              ${
+                userPermissions.length > 0
+                  ? `AND IVR_SURVEY_TRANS.SURVEY_TOPIC IN (?)`
+                  : ""
+              }
+            GROUP BY 
+              RESERVE_1 
+            ORDER BY 
+              RESERVE_1;
+          `;
+
+            const queryParams = [
+              data.startDateTime,
+              data.endDateTime,
+              `%${data.reportTopic}%`,
+              `%${data.agent}%`,
+            ];
+
+            if (userPermissions.length > 0) {
+              queryParams.push(userPermissions);
+            }
+
+            connection.query(query, queryParams, (error, result) => {
+              connection.release(); // Release the connection back to the pool
+
+              if (error) {
+                console.error("Error while querying data:", error);
+                return res
+                  .status(400)
+                  .json({ error: "Error while querying data." });
+              }
+
+              res.status(200).json(result);
+            });
           }
-
-          let data = result;
-          res.status(200).json(data);
-        });
+        );
       } catch (error) {
         console.error("Error processing request:", error);
         res
@@ -722,8 +860,9 @@ const getDataForSearchGharp = (req, res) => {
   jwt.verify(req.body.token, secretKey, (err, decoded) => {
     if (err) {
       console.error("Invalid token:", err);
-      res.status(200).json({ success: false, message: "Invalid token" });
+      res.status(401).json({ success: false, message: "Invalid token" });
     } else {
+      const username = decoded.userName;
       const startDate = req.body.startDate;
       const endDate = req.body.endDate;
 
@@ -732,33 +871,62 @@ const getDataForSearchGharp = (req, res) => {
           console.log(err);
           res.status(500).json("Error while connecting to the database.");
         } else {
-          let query;
-          let params;
+          // Fetch user permissions
+          const permissionQuery = `
+            SELECT USER_PERMISSION.USER_PERMISSION
+            FROM USER_PASSWORD
+            JOIN USER_PERMISSION ON USER_PASSWORD.USER_ID = USER_PERMISSION.USER_ID
+            WHERE USER_PASSWORD.USERNAME = ?;
+          `;
 
-          query = `
-            SELECT IVR_SURVEY_TRANS.SURVEY_TOPIC AS name,
-            COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 5 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 5 THEN 1 ELSE NULL END)AS Score5,
-            COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 4 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 4 THEN 1 ELSE NULL END) AS Score4,
-            COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 3 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 3 THEN 1 ELSE NULL END) AS Score3,
-            COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 2 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 2 THEN 1 ELSE NULL END) AS Score2,
-            COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 1 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 1 THEN 1 ELSE NULL END) AS Score1
-              FROM IVR_SURVEY_TRANS
-              WHERE IVR_SURVEY_TRANS.SURVEY_DATETIME >= ? AND IVR_SURVEY_TRANS.SURVEY_DATETIME < DATE_ADD(?, INTERVAL 1 DAY)
-                    AND SURVEY_TOPIC <> ''
-              GROUP BY SURVEY_TOPIC`;
+          connection.query(
+            permissionQuery,
+            [username],
+            (error, permissionResult) => {
+              if (error) {
+                console.error(error);
+                res.status(400).json("Error while querying permissions.");
+                connection.release(); // Release the connection back to the pool
+              } else {
+                const userPermissions = permissionResult.map(
+                  (row) => row.USER_PERMISSION
+                );
 
-          params = [startDate, endDate];
+                let query;
+                let params;
 
-          connection.query(query, params, (error, result) => {
-            console.log(result);
-            if (error) {
-              console.log(error);
-              res.status(400).json("Error while querying data.");
-            } else {
-              res.status(200).json(result);
+                query = `
+                SELECT IVR_SURVEY_TRANS.SURVEY_TOPIC AS name,
+                  COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 5 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 5 THEN 1 ELSE NULL END) AS Score5,
+                  COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 4 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 4 THEN 1 ELSE NULL END) AS Score4,
+                  COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 3 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 3 THEN 1 ELSE NULL END) AS Score3,
+                  COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 2 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 2 THEN 1 ELSE NULL END) AS Score2,
+                  COUNT(CASE WHEN IVR_SURVEY_TRANS.Score = 1 THEN 1 ELSE NULL END) + COUNT(CASE WHEN IVR_SURVEY_TRANS.Score_2 = 1 THEN 1 ELSE NULL END) AS Score1
+                FROM IVR_SURVEY_TRANS
+                WHERE IVR_SURVEY_TRANS.SURVEY_DATETIME >= ? AND IVR_SURVEY_TRANS.SURVEY_DATETIME < DATE_ADD(?, INTERVAL 1 DAY)
+                      AND SURVEY_TOPIC <> ''
+                      ${
+                        userPermissions.length > 0
+                          ? `AND IVR_SURVEY_TRANS.SURVEY_TOPIC IN (?)`
+                          : ""
+                      }
+                GROUP BY SURVEY_TOPIC`;
+
+                params = [startDate, endDate, userPermissions];
+
+                connection.query(query, params, (error, result) => {
+                  console.log(result);
+                  if (error) {
+                    console.log(error);
+                    res.status(400).json("Error while querying data.");
+                  } else {
+                    res.status(200).json(result);
+                  }
+                  connection.release(); // Release the connection back to the pool
+                });
+              }
             }
-            connection.release(); // Release the connection back to the pool
-          });
+          );
         }
       });
     }
@@ -769,8 +937,9 @@ const getDataForSearchPercentage = (req, res) => {
   jwt.verify(req.body.token, secretKey, (err, decoded) => {
     if (err) {
       console.error("Invalid token:", err);
-      res.status(200).json({ success: false, message: "Invalid token" });
+      res.status(401).json({ success: false, message: "Invalid token" });
     } else {
+      const username = decoded.userName;
       const startDate = req.body.startDate;
       const endDate = req.body.endDate;
 
@@ -779,34 +948,94 @@ const getDataForSearchPercentage = (req, res) => {
           console.log(err);
           res.status(500).json("Error while connecting to the database.");
         } else {
-          let query;
-          let params;
+          // Fetch user permissions
+          const permissionQuery = `
+            SELECT USER_PERMISSION.USER_PERMISSION
+            FROM USER_PASSWORD
+            JOIN USER_PERMISSION ON USER_PASSWORD.USER_ID = USER_PERMISSION.USER_ID
+            WHERE USER_PASSWORD.USERNAME = ?;
+          `;
 
-          query = `
-              SELECT COUNT(Score) AS scorelength,
-                     COUNT(CASE WHEN Score = 98 THEN 1 ELSE NULL END)  AS nodata,
-                     COUNT(CASE WHEN Score = 5 THEN 1 ELSE NULL END)  AS Score5,
-                     COUNT(CASE WHEN Score = 4 THEN 1 ELSE NULL END)  AS Score4,
-                     COUNT(CASE WHEN Score = 3 THEN 1 ELSE NULL END)  AS Score3,
-                     COUNT(CASE WHEN Score = 2 THEN 1 ELSE NULL END)  AS Score2,
-                     COUNT(CASE WHEN Score = 1 THEN 1 ELSE NULL END)  AS Score1,
-                     COUNT(CASE WHEN Score = 98 THEN 1 ELSE NULL END)  AS nodata
-              FROM IVR_SURVEY_TRANS
-              WHERE IVR_SURVEY_TRANS.SURVEY_DATETIME >= ? AND IVR_SURVEY_TRANS.SURVEY_DATETIME < DATE_ADD(?, INTERVAL 1 DAY)`;
+          connection.query(
+            permissionQuery,
+            [username],
+            (error, permissionResult) => {
+              if (error) {
+                console.error(error);
+                res.status(400).json("Error while querying permissions.");
+                connection.release(); // Release the connection back to the pool
+              } else {
+                const userPermissions = permissionResult.map(
+                  (row) => row.USER_PERMISSION
+                );
 
-          params = [startDate, endDate];
+                let query;
+                let params;
 
-          connection.query(query, params, (error, result) => {
-            if (error) {
-              console.log(error);
-              res.status(400).json("Error while querying data.");
-            } else {
-              res.json(calculate(result));
+                query = `
+                SELECT COUNT(Score) AS scorelength,
+                       COUNT(CASE WHEN Score = 98 THEN 1 ELSE NULL END) AS nodata,
+                       COUNT(CASE WHEN Score = 5 THEN 1 ELSE NULL END) AS Score5,
+                       COUNT(CASE WHEN Score = 4 THEN 1 ELSE NULL END) AS Score4,
+                       COUNT(CASE WHEN Score = 3 THEN 1 ELSE NULL END) AS Score3,
+                       COUNT(CASE WHEN Score = 2 THEN 1 ELSE NULL END) AS Score2,
+                       COUNT(CASE WHEN Score = 1 THEN 1 ELSE NULL END) AS Score1,
+                       COUNT(CASE WHEN Score = 98 THEN 1 ELSE NULL END) AS nodata
+                FROM IVR_SURVEY_TRANS
+                WHERE IVR_SURVEY_TRANS.SURVEY_DATETIME >= ? AND IVR_SURVEY_TRANS.SURVEY_DATETIME < DATE_ADD(?, INTERVAL 1 DAY)
+                ${
+                  userPermissions.length > 0
+                    ? `AND IVR_SURVEY_TRANS.SURVEY_TOPIC IN (?)`
+                    : ""
+                }`;
+
+                params = [startDate, endDate, userPermissions];
+
+                connection.query(query, params, (error, result) => {
+                  if (error) {
+                    console.log(error);
+                    res.status(400).json("Error while querying data.");
+                  } else {
+                    console.log("calculate(result)", calculate(result));
+                    res.json(calculate(result));
+                  }
+                  connection.release(); // Release the connection back to the pool
+                });
+              }
             }
-            connection.release(); // Release the connection back to the pool
-          });
+          );
         }
       });
+    }
+  });
+};
+const getPermissioingList = (req, res) => {
+  jwt.verify(req.body.token, secretKey, (err, decoded) => {
+    if (err) {
+      console.error("Invalid token:", err);
+      res.status(401).json({ success: false, message: "Invalid token" });
+    } else {
+      try {
+        const permissionQuery = `
+          SELECT SURVEY_TOPIC FROM IVR_SURVEY_TRANS GROUP BY SURVEY_TOPIC;
+        `;
+        pool.query(permissionQuery, (error, result) => {
+          if (error) {
+            console.log(error);
+            res
+              .status(500)
+              .json({ success: false, message: "Error querying permissions." });
+          } else {
+            const surveyTopics = result.map((row) => row.SURVEY_TOPIC);
+            res.json({ success: true, surveyTopics });
+          }
+        });
+      } catch (error) {
+        console.log(error);
+        res
+          .status(500)
+          .json({ success: false, message: "Internal server error." });
+      }
     }
   });
 };
@@ -828,4 +1057,5 @@ module.exports = {
   getQueusName,
   newQueus,
   deleteQueus,
+  getPermissioingList
 };

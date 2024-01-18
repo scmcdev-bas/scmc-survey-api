@@ -3,10 +3,10 @@ const mysql = require("mysql");
 
 // Config for connecting to MySQL
 const config = {
-  host: "203.156.30.137",
-  user: "scmc",
-  password: "password",
-  database: "scmc-survey"
+  host: "203.156.30.249",
+  user: "testscmc",
+  password: "scmcP@zzw0rd12*",
+  database: "scmc-survey-template"
 };
 
 // Create a connection pool

@@ -26,7 +26,7 @@ const login = (req, res) => {
 
       connection.query(query, [username], (error, results, fields) => {
         connection.release();
-        console.log(results)
+        console.log(results);
 
         if (error) {
           console.error("Error while querying data: ", error);
@@ -166,7 +166,7 @@ const changePassword = (req, res) => {
 const addUser = (req, res) => {
   jwt.verify(req.body.token, secretKey, (err, decoded) => {
     if (err) {
-      console.log(err)
+      console.log(err);
       res.status(200).json({ success: false, error: "Invalid token" });
     } else {
       const data = req.body;
@@ -187,7 +187,7 @@ const addUser = (req, res) => {
             const query1 = "SELECT * FROM USER_PASSWORD WHERE USERNAME = ?";
             connection.query(query1, [data.username], (error1, results1) => {
               if (error1) {
-                console.log(error1)
+                console.log(error1);
 
                 connection.release();
                 res.status(500).json({ error: "Error while querying data." });
@@ -202,7 +202,7 @@ const addUser = (req, res) => {
                       data.role,
                       Buffer.from(data.password).toString("base64"),
                       currentDate,
-                      data.userFullname
+                      data.userFullname,
                     ],
                     (insertError, insertResults) => {
                       connection.release(); // Release the connection back to the pool
@@ -214,8 +214,8 @@ const addUser = (req, res) => {
                       } else {
                         res
                           .status(201)
-                          .json({ message: "Success", success: 'true' });
-                        }
+                          .json({ message: "Success", success: "true" });
+                      }
                     }
                   );
                 } else {
@@ -229,7 +229,7 @@ const addUser = (req, res) => {
           }
         });
       } catch (error) {
-        console.log(error)
+        console.log(error);
         res.status(500).json({ error: "Error while querying data." });
       }
     }
@@ -285,6 +285,73 @@ const verifyLogin = (req, res) => {
     }
   });
 };
+const editPermission = (req, res) => {
+  const token = req.body.token;
+  jwt.verify(token, secretKey, (err, decoded) => {
+    if (err) {
+      console.error("Invalid token:", err);
+      res.status(401).json({ success: false, message: "Invalid token" });
+    } else {
+      const USERNAME = req.body.AGENT_ID;
+
+      const userQuery = `
+        SELECT USER_ID FROM USER_PASSWORD WHERE USERNAME = ?;
+      `;
+
+      pool.query(userQuery, [USERNAME], (error, result) => {
+        if (error) {
+          console.log(error);
+          res.status(500).json({
+            success: false,
+            message: "Error querying permissions.",
+          });
+        } else {
+          const userId = result[0].USER_ID;
+          const deletePermissionQuery = `
+            DELETE FROM USER_PERMISSION
+            WHERE USER_ID = ?;`;
+          pool.query(deletePermissionQuery, [userId], (error, result) => {
+            if (error) {
+              console.log(error);
+              res.status(500).json({
+                success: false,
+                message: "Error deleting permissions.",
+              });
+            } else {
+              const permissions = req.body.PERMISSION;
+
+              // Iterate over the permissions array and execute insert query for each permission
+              permissions.forEach((permission) => {
+                const insertNewPermissionQuery = `
+                  INSERT INTO USER_PERMISSION
+                  (USER_ID, USER_PERMISSION)
+                  VALUES (?, ?)`;
+                pool.query(
+                  insertNewPermissionQuery,
+                  [userId, permission],
+                  (error, result) => {
+                    if (error) {
+                      console.log(error);
+                      res.status(500).json({
+                        success: false,
+                        message: "Error inserting permissions.",
+                      });
+                    }
+                  }
+                );
+              });
+
+              res.status(200).json({
+                success: true,
+                message: "Permissions updated successfully.",
+              });
+            }
+          });
+        }
+      });
+    }
+  });
+};
 
 module.exports = {
   login,
@@ -293,4 +360,5 @@ module.exports = {
   verifyUser,
   verifyLogin,
   changePassword,
+  editPermission,
 };
